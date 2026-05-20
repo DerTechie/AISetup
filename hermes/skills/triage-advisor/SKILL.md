@@ -10,7 +10,7 @@ Recommend whether the current task should run on the fast **local** model or the
 ## How to run
 
 1. Write a one-line description of the task being routed.
-2. Run (requires `LITELLM_BASE_URL` and `LITELLM_MASTER_KEY` in the environment — the same gateway values Hermes already uses):
+2. Run (the script reads gateway creds from `~/.hermes/config.yaml` automatically; override with `LITELLM_BASE_URL` + `LITELLM_MASTER_KEY` env vars if needed):
 
    ```bash
    python3 ~/.hermes/skills/triage-advisor/triage_advisor.py "<task description>"

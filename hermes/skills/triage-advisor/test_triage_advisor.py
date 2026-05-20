@@ -105,6 +105,7 @@ def test_main_missing_task_returns_2():
 def test_main_missing_env_returns_2(monkeypatch):
     monkeypatch.delenv("LITELLM_BASE_URL", raising=False)
     monkeypatch.delenv("LITELLM_MASTER_KEY", raising=False)
+    monkeypatch.setenv("HERMES_CONFIG_PATH", "/nonexistent/config.yaml")
     assert triage_advisor.main(["prog", "do a thing"]) == 2
 
 
@@ -115,3 +116,54 @@ def test_main_handles_unreachable_gateway(monkeypatch):
         raise triage_advisor.urllib.error.URLError("refused")
     monkeypatch.setattr(triage_advisor, "call_gateway", boom)
     assert triage_advisor.main(["prog", "do a thing"]) == 1
+
+
+def test_read_hermes_config_creds_parses_model_block(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text(
+        "model:\n"
+        "  default: local\n"
+        "  provider: custom\n"
+        "  base_url: http://10.63.0.32:4000/v1\n"
+        "  api_key: sk-secret\n"
+        "providers: {}\n"
+    )
+    base_url, api_key = triage_advisor.read_hermes_config_creds(str(cfg))
+    assert base_url == "http://10.63.0.32:4000/v1"
+    assert api_key == "sk-secret"
+
+
+def test_read_hermes_config_creds_missing_file_returns_none():
+    assert triage_advisor.read_hermes_config_creds("/nope/config.yaml") == (None, None)
+
+
+def test_read_hermes_config_creds_ignores_keys_outside_model_block(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text(
+        "model:\n"
+        "  base_url: http://mac:4000/v1\n"
+        "  api_key: sk-right\n"
+        "other:\n"
+        "  api_key: sk-wrong\n"
+    )
+    base_url, api_key = triage_advisor.read_hermes_config_creds(str(cfg))
+    assert base_url == "http://mac:4000/v1"
+    assert api_key == "sk-right"
+
+
+def test_main_falls_back_to_config_when_env_missing(monkeypatch, tmp_path):
+    monkeypatch.delenv("LITELLM_BASE_URL", raising=False)
+    monkeypatch.delenv("LITELLM_MASTER_KEY", raising=False)
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text("model:\n  base_url: http://mac:4000/v1\n  api_key: sk-cfg\n")
+    monkeypatch.setenv("HERMES_CONFIG_PATH", str(cfg))
+    monkeypatch.setenv("TRIAGE_LOG_PATH", str(tmp_path / "log.jsonl"))
+    captured = {}
+    def fake_call(messages, base_url, api_key):
+        captured["base_url"] = base_url
+        captured["api_key"] = api_key
+        return '{"recommendation": "local", "reason": "ok"}'
+    monkeypatch.setattr(triage_advisor, "call_gateway", fake_call)
+    assert triage_advisor.main(["prog", "summarize this"]) == 0
+    assert captured["base_url"] == "http://mac:4000/v1"
+    assert captured["api_key"] == "sk-cfg"
