@@ -1,4 +1,14 @@
-from triage_advisor import Recommendation, build_prompt
+import json
+from datetime import datetime, timezone
+
+import triage_advisor
+from triage_advisor import (
+    Recommendation,
+    build_prompt,
+    format_log_line,
+    format_output,
+    parse_recommendation,
+)
 
 
 def test_build_prompt_includes_rubric_and_task():
@@ -9,12 +19,10 @@ def test_build_prompt_includes_rubric_and_task():
     assert "summarize my inbox" in msgs[1]["content"]
 
 
-def test_recommendation_defaults_signals_to_empty_list():
-    rec = Recommendation("local", "routine")
+def test_parse_missing_signals_defaults_to_empty_list():
+    rec = parse_recommendation('{"recommendation": "local", "reason": "routine"}')
+    assert rec.recommendation == "local"
     assert rec.signals == []
-
-
-from triage_advisor import parse_recommendation
 
 
 def test_parse_valid_json():
@@ -34,12 +42,6 @@ def test_parse_malformed_falls_back_to_unknown():
 def test_parse_unexpected_recommendation_value_is_unknown():
     rec = parse_recommendation('{"recommendation": "cloud", "reason": "x"}')
     assert rec.recommendation == "unknown"
-
-
-import json
-from datetime import datetime, timezone
-
-from triage_advisor import format_log_line, format_output
 
 
 def test_format_log_line_is_valid_jsonl():
@@ -71,9 +73,6 @@ def test_format_output_unknown_shows_raw():
     assert "garbled text" in out
 
 
-import triage_advisor
-
-
 def test_call_gateway_posts_and_extracts_content(monkeypatch):
     captured = {}
 
@@ -97,3 +96,22 @@ def test_call_gateway_posts_and_extracts_content(monkeypatch):
     assert captured["body"]["model"] == "local"
     assert captured["auth"] == "Bearer sk-test"
     assert "local" in content
+
+
+def test_main_missing_task_returns_2():
+    assert triage_advisor.main(["prog"]) == 2
+
+
+def test_main_missing_env_returns_2(monkeypatch):
+    monkeypatch.delenv("LITELLM_BASE_URL", raising=False)
+    monkeypatch.delenv("LITELLM_MASTER_KEY", raising=False)
+    assert triage_advisor.main(["prog", "do a thing"]) == 2
+
+
+def test_main_handles_unreachable_gateway(monkeypatch):
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://mac:4000/v1")
+    monkeypatch.setenv("LITELLM_MASTER_KEY", "sk-test")
+    def boom(*a, **k):
+        raise triage_advisor.urllib.error.URLError("refused")
+    monkeypatch.setattr(triage_advisor, "call_gateway", boom)
+    assert triage_advisor.main(["prog", "do a thing"]) == 1

@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 import os
 import sys
+import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 JUDGE_MODEL = "local"
 
@@ -49,7 +51,7 @@ def parse_recommendation(raw: str) -> Recommendation:
         return Recommendation(recommendation="unknown", reason=raw.strip(), signals=[])
 
 
-def format_log_line(rec: Recommendation, task: str, when) -> str:
+def format_log_line(rec: Recommendation, task: str, when: datetime) -> str:
     return json.dumps({
         "ts": when.isoformat(),
         "task": task,
@@ -83,7 +85,6 @@ def call_gateway(messages: list[dict], base_url: str, api_key: str) -> str:
 
 
 def main(argv: list[str]) -> int:
-    from datetime import datetime, timezone
     if len(argv) < 2 or not argv[1].strip():
         print('usage: triage_advisor.py "<task description>"', file=sys.stderr)
         return 2
@@ -95,7 +96,11 @@ def main(argv: list[str]) -> int:
         return 2
     log_path = os.path.expanduser(
         os.environ.get("TRIAGE_LOG_PATH", "~/.hermes/triage-advisor.jsonl"))
-    raw = call_gateway(build_prompt(task), base_url, api_key)
+    try:
+        raw = call_gateway(build_prompt(task), base_url, api_key)
+    except urllib.error.URLError as exc:
+        print(f"Could not reach gateway: {exc.reason}", file=sys.stderr)
+        return 1
     rec = parse_recommendation(raw)
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
     with open(log_path, "a") as f:
