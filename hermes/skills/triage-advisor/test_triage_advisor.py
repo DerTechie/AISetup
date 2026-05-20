@@ -34,3 +34,38 @@ def test_parse_malformed_falls_back_to_unknown():
 def test_parse_unexpected_recommendation_value_is_unknown():
     rec = parse_recommendation('{"recommendation": "cloud", "reason": "x"}')
     assert rec.recommendation == "unknown"
+
+
+import json
+from datetime import datetime, timezone
+
+from triage_advisor import format_log_line, format_output
+
+
+def test_format_log_line_is_valid_jsonl():
+    rec = Recommendation("local", "routine", ["summary"])
+    when = datetime(2026, 5, 20, 12, 0, tzinfo=timezone.utc)
+    data = json.loads(format_log_line(rec, "my task", when))
+    assert data["recommendation"] == "local"
+    assert data["task"] == "my task"
+    assert data["reason"] == "routine"
+    assert data["signals"] == ["summary"]
+    assert data["ts"].startswith("2026-05-20")
+
+
+def test_format_output_deep_suggests_model_deep():
+    out = format_output(Recommendation("deep", "needs big context", ["large-context"]))
+    assert "deep" in out
+    assert "/model deep" in out
+    assert "won't switch automatically" in out
+
+
+def test_format_output_local_suggests_model_fast():
+    out = format_output(Recommendation("local", "routine", []))
+    assert "/model fast" in out
+
+
+def test_format_output_unknown_shows_raw():
+    out = format_output(Recommendation("unknown", "garbled text", []))
+    assert "Could not parse" in out
+    assert "garbled text" in out
