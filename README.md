@@ -2,7 +2,7 @@
 
 A hybrid AI-agent infrastructure that keeps routine work **local, free, and private** while reaching **cloud reasoning** only for genuinely hard tasks — with a hard cost ceiling and full visibility into which model handled what.
 
-> **Status:** design approved, implementation not yet started. See the [design spec](docs/superpowers/specs/2026-05-20-hybrid-ai-routing-design.md) and the [decision journal](docs/journal/).
+> **Status:** Phase 1 (routing gateway) complete; Phase 2 (triage advisor) complete. See the [design spec](docs/superpowers/specs/2026-05-20-hybrid-ai-routing-design.md) and the [decision journal](docs/journal/).
 
 ## The idea
 
@@ -59,7 +59,7 @@ A local high-end multi-GPU rig is hard to justify against German electricity pri
 The routing layer (LiteLLM) is the centerpiece and ships first.
 
 1. **Routing in place:** Mac prep + Ollama (`pmset`, `OLLAMA_HOST`, pull model); LiteLLM gateway with `local` + `deep` routes, €100/mo budget cap, token cap, context fallback, dashboard; wire Hermes (default local, `/model deep` → cloud).
-2. Triage advisor skill (recommend / local-judge).
+2. **Done.** Triage advisor skill (recommend / local-judge) — see [runbook § Triage advisor](docs/runbook.md#triage-advisor-phase-2).
 3. Langfuse on the NAS.
 4. *(Deferred)* Presidio anonymization + GDPR hardening — treated as risk-reduction, never a compliance guarantee.
 

@@ -66,3 +66,12 @@ Dashboard: `http://10.63.0.32:4000/ui` (login `UI_USERNAME` / `UI_PASSWORD`).
 - **SSH terminal garbled** (backspace wrong) → connect with `TERM=xterm-256color ssh 10.63.0.32`.
 - **First call ~15 s** → cold model load; `keep_alive: -1` keeps it warm afterward.
 - **401 from gateway** → Hermes `api_key` must be the literal master key (`key_env` is not honored on the main `model:` block).
+
+## Triage advisor (Phase 2)
+- Skill source: `hermes/skills/triage-advisor/` (repo); deployed to `~/.hermes/skills/triage-advisor/`.
+- Manual use: ask Hermes to use the triage advisor, or run
+  `python3 ~/.hermes/skills/triage-advisor/triage_advisor.py "<task>"`.
+- Needs `LITELLM_BASE_URL` + `LITELLM_MASTER_KEY` in the environment.
+- Judge runs on the `local` (no-think) route. Recommend-only — it never switches models.
+- Recommendations are logged to `~/.hermes/triage-advisor.jsonl` (review before considering auto-routing).
+- To deepen judgment: set `JUDGE_MODEL = "local-think"` in `triage_advisor.py` and redeploy.
