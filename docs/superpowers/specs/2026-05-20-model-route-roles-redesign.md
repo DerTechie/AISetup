@@ -63,7 +63,7 @@ Chosen from the current OpenRouter landscape (verified 2026-05-20). The brain is
 The default route now **costs money every turn**, so the base spec's "local is free, only cloud is capped" model no longer holds.
 
 - **At budget cap, `main` degrades to `private`** (the slow local brain) rather than dying. This keeps the agent alive *and* preserves the hard €100 ceiling. **Distinct** from the rule that `deep` *tasks* never silently downgrade to local: degrading the *brain itself* to slow-but-working local is acceptable; silently answering a *deep research task* on local is not.
-- **Three-way budget split**, re-summing to ≤ ~100 USD (~€92): starting guess **`main` €50 + `deep` €35 + `deep-fallback` €15**, each as a per-model `max_budget` + `budget_duration` in `litellm_params` (never the global `litellm_settings.max_budget`, which would block the free `private` route too — base spec §6 lesson). Per-request `max_tokens` on each cloud model as before. Tune the split against real usage.
+- **Three-way budget split** in **USD** (LiteLLM `max_budget` is USD; the hard ceiling is **$100 ≈ €92**), re-summing to exactly $100: starting guess **`main` $50 + `deep` $35 + `deep-fallback` $15**, each as a per-model `max_budget` + `budget_duration` in `litellm_params` (never the global `litellm_settings.max_budget`, which would block the free `private` route too — base spec §6 lesson). Per-request `max_tokens` on each cloud model as before. Tune the split against real usage. *(The base spec's split was `deep` $75 + `deep-fallback` $25; this redesign carves the `main` slice out of `deep`'s.)*
 
 ## 7. Migration blast radius
 
