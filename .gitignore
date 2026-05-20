@@ -1,0 +1,14 @@
+# Secrets — never commit
+.env
+.env.*
+*.key
+*.pem
+**/secrets.*
+litellm.secrets.yaml
+
+# Local Claude settings (may contain machine-specific permissions)
+.claude/settings.local.json
+
+# OS / editor noise
+.DS_Store
+*.swp
