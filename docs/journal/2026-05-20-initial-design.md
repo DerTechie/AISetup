@@ -20,6 +20,7 @@ This entry records what we kept, what we changed, and **why** — so it can be r
 - **Observability via the OTel/Langfuse standard.** "See which model was chosen" is a runtime concern, explicitly **not** in Obsidian. Start with LiteLLM's built-in dashboard (`mac:4000/ui`, opened from Arch); upgrade to Langfuse on the **NAS** later (always-on Docker host, no contention with the Mac's model memory).
 - **GDPR/Presidio deferred.** No customer / sensitive third-party data yet. Also noted: NER masking is best-effort and never a compliance guarantee — so it's "later, and treated as risk-reduction", not a checkbox.
 - **All docs in English.**
+- **Local model = `qwen3.6:27b` (Q4_K_M, ~17 GB).** Chosen over a qwen2.5:32b placeholder after checking 2026 benchmarks: it has native tools + thinking (what Hermes' agentic use needs) and reportedly beats the Qwen3.5-397B MoE on coding/agentic benches — flagship reasoning in a 27B. Verified the official Ollama tag runs (a blog warning about "Qwen3.6 not working in Ollama" was about third-party GGUFs, not the library tag). Q4 only — Q5/Q6 are too tight once Docker (LiteLLM + Postgres) is also resident on 32 GB. It thinks by default, so triage will pass `think: false`.
 - **Routing-first phasing.** The LiteLLM routing layer (local + cloud, caps, dashboard) is the first milestone — it's the interesting core of the project, not the email triage. Local-model inbox quality gets validated once routing is live, not as a gate before it.
 
 ## What we rejected

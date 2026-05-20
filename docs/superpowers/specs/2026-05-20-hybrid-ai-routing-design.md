@@ -81,7 +81,7 @@ Cost is bounded independently (Section 6), so routing is chosen for **reliabilit
 
 ## 8. Model choice
 
-- **Local:** the current ~24 GB agentic Qwen (confirm exact Ollama tag at setup). One model only.
+- **Local:** `qwen3.6:27b` (Q4_K_M, ~17 GB; official Ollama tag, native tools + thinking, benchmark-leading for its size). One model only. Thinking-by-default; pass `think: false` for fast triage. Q4 only — higher quants are too tight alongside the Docker stack.
 - **Cloud (OpenRouter):** a strong reasoning / large-context model for research (e.g. DeepSeek-R1 or a Qwen-72B-class model). Pick by required context window + quality; verify the model's real context limit (not all support 200k).
 
 ## 9. Error handling
@@ -113,7 +113,7 @@ The **routing layer (LiteLLM) is the centerpiece and the first milestone** — l
 
 ## 12. Open items to verify during implementation
 
-- Exact Ollama tag for the ~24 GB agentic Qwen.
+- ~~Exact Ollama tag for the local model.~~ **Resolved: `qwen3.6:27b` (Q4_K_M).**
 - Hermes model-alias / subagent config specifics for the `deep` route, and which API Hermes currently uses.
 - Whether a Hermes skill can invoke a specific model for the triage advisor.
 - OpenRouter chosen model + real context limit + provider/no-log settings (revisit in Phase 6).

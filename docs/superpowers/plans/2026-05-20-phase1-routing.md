@@ -21,11 +21,11 @@ Confirm/collect these. They are environment-specific, not guesses:
 | `OPENROUTER_API_KEY` | Create account at openrouter.ai, add a few € credit, make a key (`sk-or-...`) | Task 3 |
 | `LITELLM_MASTER_KEY` | You invent it, format `sk-...` (gateway admin/API key) | Tasks 2–5 |
 | `POSTGRES_PASSWORD`, `UI_USERNAME`, `UI_PASSWORD` | You invent them | Task 2 |
-| `LOCAL_MODEL_TAG` | Verify on `ollama.com/library`. **Default: `qwen2.5:32b-instruct-q4_K_M`** (~20 GB). Prefer a current agentic Qwen (e.g. a qwen3 32B / 30B-A3B tag) if available. | Task 1, 3 |
+| `LOCAL_MODEL_TAG` | **Chosen: `qwen3.6:27b`** (Q4_K_M, ~17 GB; official Ollama tag, native tools + thinking). | Task 1, 3 |
 | `DEEP_MODEL` | OpenRouter model id. **Default: `deepseek/deepseek-r1`**. Verify its context limit. | Task 3 |
 | Hermes config location | Confirm `~/.hermes/config.yaml` and how Hermes currently talks to Ollama | Task 5 |
 
-**Memory note:** on a 32 GB Mac, `qwen2.5:32b` (Q4 ≈ 20 GB) + Postgres + LiteLLM + macOS leaves a tight but workable margin for one concurrent inference. If it swaps or feels slow, switch `LOCAL_MODEL_TAG` to a 30B-A3B MoE (≈18 GB, faster) or a smaller quant.
+**Memory note:** on a 32 GB Mac, `qwen3.6:27b` (Q4_K_M ≈ 17 GB) + KV cache + Postgres + LiteLLM + macOS leaves a tight but workable margin for one concurrent inference. Keep context modest (~32k) to bound KV; if the GPU complains, raise the wired limit (`sudo sysctl iogpu.wired_limit_mb=28000`). It's a *thinking* model — pass `think: false` for fast email triage. Do **not** go above Q4 here (Q5 ≈ 20 GB / Q6 ≈ 24 GB are too tight alongside the Docker stack). If it swaps or feels slow, drop to the `35b`-A3B MoE variant (faster) or a smaller model.
 
 ---
 
@@ -56,7 +56,7 @@ launchctl setenv OLLAMA_HOST "0.0.0.0:11434"
 
 - [ ] **Step 4: Pull the local model**
 
-Run (on Mac): `ollama pull qwen2.5:32b-instruct-q4_K_M`
+Run (on Mac): `ollama pull qwen3.6:27b`
 Expected: download completes; `ollama list` shows the tag.
 
 - [ ] **Step 5: Smoke-test Ollama over the LAN (from the Arch box)**
@@ -64,7 +64,7 @@ Expected: download completes; `ollama list` shows the tag.
 ```bash
 curl -s http://$MAC_HOST:11434/api/tags | head
 curl -s http://$MAC_HOST:11434/api/generate \
-  -d '{"model":"qwen2.5:32b-instruct-q4_K_M","prompt":"Reply with exactly: OK","stream":false}'
+  -d '{"model":"qwen3.6:27b","prompt":"Reply with exactly: OK","stream":false}'
 ```
 Expected: first call lists the model; second returns JSON whose `response` contains `OK`. **If this fails, stop** — nothing downstream works until Ollama answers over the LAN.
 
@@ -148,7 +148,7 @@ Expected: prints server info without error. If not, install/start colima (`brew 
 model_list:
   - model_name: local
     litellm_params:
-      model: ollama_chat/qwen2.5:32b-instruct-q4_K_M
+      model: ollama_chat/qwen3.6:27b
       api_base: http://host.docker.internal:11434
   - model_name: deep
     litellm_params:
