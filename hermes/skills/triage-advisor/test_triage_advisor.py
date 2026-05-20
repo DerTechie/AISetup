@@ -69,3 +69,31 @@ def test_format_output_unknown_shows_raw():
     out = format_output(Recommendation("unknown", "garbled text", []))
     assert "Could not parse" in out
     assert "garbled text" in out
+
+
+import triage_advisor
+
+
+def test_call_gateway_posts_and_extracts_content(monkeypatch):
+    captured = {}
+
+    class FakeResp:
+        def __init__(self, payload): self._p = payload
+        def read(self): return json.dumps(self._p).encode()
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    def fake_urlopen(req, timeout=0):
+        captured["url"] = req.full_url
+        captured["body"] = json.loads(req.data)
+        captured["auth"] = req.headers.get("Authorization")
+        return FakeResp(
+            {"choices": [{"message": {"content": '{"recommendation": "local", "reason": "ok"}'}}]})
+
+    monkeypatch.setattr(triage_advisor.urllib.request, "urlopen", fake_urlopen)
+    content = triage_advisor.call_gateway(
+        [{"role": "user", "content": "hi"}], "http://mac:4000/v1", "sk-test")
+    assert captured["url"] == "http://mac:4000/v1/chat/completions"
+    assert captured["body"]["model"] == "local"
+    assert captured["auth"] == "Bearer sk-test"
+    assert "local" in content
