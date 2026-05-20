@@ -71,7 +71,7 @@ Dashboard: `http://10.63.0.32:4000/ui` (login `UI_USERNAME` / `UI_PASSWORD`).
 - Skill source: `hermes/skills/triage-advisor/` (repo); deployed to `~/.hermes/skills/triage-advisor/`.
 - Manual use: ask Hermes to use the triage advisor, or run
   `python3 ~/.hermes/skills/triage-advisor/triage_advisor.py "<task>"`.
-- Needs `LITELLM_BASE_URL` + `LITELLM_MASTER_KEY` in the environment.
+- Reads gateway creds from `~/.hermes/config.yaml` (`model.base_url` + `model.api_key`) automatically; override with `LITELLM_BASE_URL` + `LITELLM_MASTER_KEY` env vars if needed.
 - Judge runs on the `local` (no-think) route. Recommend-only — it never switches models.
 - Recommendations are logged to `~/.hermes/triage-advisor.jsonl` (review before considering auto-routing).
 - To deepen judgment: set `JUDGE_MODEL = "local-think"` in `triage_advisor.py` and redeploy.

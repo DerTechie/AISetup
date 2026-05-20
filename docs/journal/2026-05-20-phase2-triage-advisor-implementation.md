@@ -36,8 +36,17 @@ Email summarization is *the* flagship LOCAL task in this project — getting it 
 
 The heavy task's reasoning shifted from "web access" to "synthesis / non-obvious conclusions" — the judge is now reasoning on the right axis. And it works on the fast no-think route, so we keep the latency win. The "switch to local-think" lever stays in reserve, unused.
 
+## Bug 3 (caught in Hermes): the skill subprocess had no gateway creds
+
+First real run *inside Hermes* failed instantly: the SKILL.md told Hermes to run `python3 …/triage_advisor.py`, but that subprocess doesn't inherit `LITELLM_BASE_URL`/`LITELLM_MASTER_KEY` — Hermes keeps its gateway creds in `~/.hermes/config.yaml` (`model.base_url` + `model.api_key`), not as env vars. The script's guard correctly refused to run, which is how we spotted it. **Fix:** the script now falls back to reading `model.base_url`/`model.api_key` from `~/.hermes/config.yaml` when the env vars are unset (env still wins; `HERMES_CONFIG_PATH` overrides the path for tests). A minimal stdlib parser scoped to the top-level `model:` block — no PyYAML, since the skill runs under a bare `python3`. Single source of truth, zero extra setup. Verified end-to-end: deployed copy, no env vars, reads config → correct `local` recommendation.
+
+## Bug 4 (caught while verifying Bug 3): read timeouts dumped a traceback
+
+The first deployed run timed out (the gateway was busy serving a parallel Hermes research session) and raised `TimeoutError` — which is **not** a subclass of `urllib.error.URLError`, so the clean-error handler missed it and a traceback leaked. **Fix:** also catch `TimeoutError` in `main()` and report it cleanly (exit 1). Lesson: `socket`/read timeouts are `TimeoutError`/`OSError`, not `URLError`; both paths need handling.
+
 ## State / what's still pending
 
-- **Verified:** script end-to-end against the live gateway (reachable, JSON parsed, logged), and judge quality on the two canonical cases (plan Task 5).
-- **Pending (Hermes-side, plan Task 7):** deploy the *fixed* script to `~/.hermes/skills/triage-advisor/`, confirm Hermes loads the skill, manual invocation works through Hermes, the fact-keyed nudge fires on a research task, and a routine turn does **not** trigger it.
-- **Possible follow-up:** `SKILL.md`'s trigger description still lists "needs current/web information" as a propose-signal — same muddled concept as Bug 2, but in the lower-stakes *proposing* role (not the decision). Worth reconsidering during the Task 7 nudge checks; left unchanged for now to avoid bundling an unverified change.
+- **Verified:** script end-to-end against the live gateway (env-based *and* config-fallback, no env vars), judge quality on the two canonical cases (plan Task 5), and the deployed copy under `~/.hermes/`. 18 unit tests.
+- **Partly verified (Task 7):** Hermes *does* load and select the skill — the failing run was Hermes invoking it, which proves loading + manual triggering. Manual invocation should now fully work post-redeploy.
+- **Open observation (Task 7):** on a genuine "market overview of MCP servers" turn, Hermes loaded its `native-mcp` skill + web search and did **not** propose the triage advisor — a more specific skill out-competed the advisor's fact-keyed trigger. Needs a fresh observation now that the skill actually runs; if it recurs, the trigger description (or skill priority) needs tuning. Also still open: confirm a routine turn does *not* trigger the nudge.
+- **Possible follow-up:** `SKILL.md`'s trigger description still lists "needs current/web information" as a propose-signal — same muddled concept as Bug 2, but in the lower-stakes *proposing* role. Left unchanged for now to avoid bundling an unverified change.
