@@ -31,6 +31,11 @@ This entry records what we kept, what we changed, and **why** — so it can be r
 - Pure manual model selection with no cap — I'd over-bias to cloud and overspend.
 - Presidio masking framed as "DSGVO compliance" — overconfident.
 
+## Implementation findings (2026-05-20)
+
+- **Global budget blocks everything — use a per-model budget.** First attempt used LiteLLM's `litellm_settings.max_budget` (global). The cap test proved it blocks *all* requests once total spend crosses it — including the free `local` model (`"Budget has been exceeded!"` on a local call). That breaks the "local always works" requirement. Fix: move the cap into the `deep` model's `litellm_params` (`max_budget` + `budget_duration`); `local` has no budget and is never blocked. Good reminder that the cap test was worth running — it caught a silent design flaw.
+- **qwen3.6:27b thinks even on trivial prompts:** "reply OK" cost 144 completion tokens locally (vs 18 on deep). Triage will pass `think: false`.
+
 ## Open questions (carry into implementation)
 
 - Exact Ollama tag for the ~24 GB agentic Qwen.

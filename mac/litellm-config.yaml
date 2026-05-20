@@ -8,13 +8,13 @@ model_list:
       model: openrouter/deepseek/deepseek-r1
       api_key: os.environ/OPENROUTER_API_KEY
       max_tokens: 8000          # default completion ceiling per request
+      max_budget: 100           # USD - hard cap on CLOUD (deep) spend only (~EUR92)
+      budget_duration: 30d      # cloud budget window
 
 litellm_settings:
   drop_params: true
   num_retries: 2
   context_window_fallbacks: [{"local": ["deep"]}]   # local prompt too big -> deep
-  max_budget: 100               # USD, global, hard cap (~EUR92). Adjust to taste.
-  budget_duration: 30d
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY

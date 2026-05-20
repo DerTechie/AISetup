@@ -70,8 +70,8 @@ Cost is bounded independently (Section 6), so routing is chosen for **reliabilit
 
 ## 6. Cost control
 
-- LiteLLM `max_budget` = **€100/month** (plus optional daily sub-cap), with `budget_duration`, and a per-request `max_tokens`.
-- **Behavior at cap:** cloud requests are **blocked with a clear error**; routine continues locally. Do **not** silently downgrade a deep task to the local model — a visible error is better than a confidently wrong cheap answer.
+- Cloud budget is scoped to the **`deep` model only** (`max_budget: 100` USD + `budget_duration: 30d` in its `litellm_params`), **not** the global `litellm_settings.max_budget`. The global budget blocks *all* requests — including the free `local` model — once total spend crosses it (verified the hard way during implementation), which we explicitly do not want. Plus a per-request `max_tokens` on `deep`.
+- **Behavior at cap:** `deep` is **blocked with a clear `budget_exceeded` error**; `local` (no budget) keeps working. Never silently downgrade a deep task to local.
 
 ## 7. Observability
 
