@@ -144,6 +144,10 @@ def main(argv: list[str]) -> int:
     except urllib.error.URLError as exc:
         print(f"Could not reach gateway: {exc.reason}", file=sys.stderr)
         return 1
+    except TimeoutError:
+        print("Could not reach gateway: timed out (is the local model loading?)",
+              file=sys.stderr)
+        return 1
     rec = parse_recommendation(raw)
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
     with open(log_path, "a") as f:

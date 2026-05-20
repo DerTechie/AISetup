@@ -167,3 +167,12 @@ def test_main_falls_back_to_config_when_env_missing(monkeypatch, tmp_path):
     assert triage_advisor.main(["prog", "summarize this"]) == 0
     assert captured["base_url"] == "http://mac:4000/v1"
     assert captured["api_key"] == "sk-cfg"
+
+
+def test_main_handles_gateway_timeout(monkeypatch):
+    monkeypatch.setenv("LITELLM_BASE_URL", "http://mac:4000/v1")
+    monkeypatch.setenv("LITELLM_MASTER_KEY", "sk-test")
+    def boom(*a, **k):
+        raise TimeoutError("timed out")
+    monkeypatch.setattr(triage_advisor, "call_gateway", boom)
+    assert triage_advisor.main(["prog", "do a thing"]) == 1
