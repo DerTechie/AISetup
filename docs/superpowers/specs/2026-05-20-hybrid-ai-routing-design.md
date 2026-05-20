@@ -101,12 +101,15 @@ Cost is bounded independently (Section 6), so routing is chosen for **reliabilit
 
 ## 11. Phasing (implementation order)
 
-1. **Mac as Ollama server.** Disable sleep (`pmset`), set `OLLAMA_HOST`, pull the ~24 GB model. Point Hermes directly at Mac Ollama. **Validate triage quality on the real inbox.** No LiteLLM yet.
-2. **LiteLLM proxy** on the Mac (local model only). Hermes → LiteLLM. Validate pass-through + dashboard.
-3. **Add OpenRouter** to LiteLLM: `local`/`deep` aliases, budget + token caps, context-window fallback. Validate explicit cloud routing + cost cap.
-4. **Triage advisor skill** (recommend / local-judge).
-5. **Langfuse on the NAS.**
-6. **(Deferred)** Presidio anonymization + GDPR hardening.
+The **routing layer (LiteLLM) is the centerpiece and the first milestone** — local *and* cloud routing through the gateway, end to end. Local-model quality on the real inbox is validated once routing is up, not as a gating step before it.
+
+1. **Routing in place (core milestone).**
+   - **1a — Mac prep:** disable sleep (`pmset`), set `OLLAMA_HOST`, pull the ~24 GB model; smoke-test that Ollama answers over the network.
+   - **1b — LiteLLM gateway:** define `local` (Ollama) and `deep` (OpenRouter) models/aliases; OpenRouter key via env var; **€100/mo budget cap** + per-request token cap; `context_window_fallbacks`; dashboard at `:4000/ui`.
+   - **1c — Wire Hermes:** point Hermes' main model at LiteLLM (default `local`); verify `/model deep` reaches cloud and the dashboard shows model / tokens / cost; confirm the cap blocks cloud with a clear error.
+2. **Triage advisor skill** (recommend / local-judge).
+3. **Langfuse on the NAS.**
+4. **(Deferred)** Presidio anonymization + GDPR hardening.
 
 ## 12. Open items to verify during implementation
 

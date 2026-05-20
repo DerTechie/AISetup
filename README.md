@@ -56,12 +56,12 @@ A local high-end multi-GPU rig is hard to justify against German electricity pri
 
 ## Implementation phases
 
-1. Mac as Ollama server; point Hermes at it; validate triage quality on the real inbox.
-2. LiteLLM proxy (local only); Hermes → LiteLLM; validate dashboard.
-3. Add OpenRouter: `local`/`deep` aliases, budget + token caps, context fallback.
-4. Triage advisor skill (recommend / local-judge).
-5. Langfuse on the NAS.
-6. *(Deferred)* Presidio anonymization + GDPR hardening — treated as risk-reduction, never a compliance guarantee.
+The routing layer (LiteLLM) is the centerpiece and ships first.
+
+1. **Routing in place:** Mac prep + Ollama (`pmset`, `OLLAMA_HOST`, pull model); LiteLLM gateway with `local` + `deep` routes, €100/mo budget cap, token cap, context fallback, dashboard; wire Hermes (default local, `/model deep` → cloud).
+2. Triage advisor skill (recommend / local-judge).
+3. Langfuse on the NAS.
+4. *(Deferred)* Presidio anonymization + GDPR hardening — treated as risk-reduction, never a compliance guarantee.
 
 ## Repository layout
 

@@ -20,6 +20,7 @@ This entry records what we kept, what we changed, and **why** — so it can be r
 - **Observability via the OTel/Langfuse standard.** "See which model was chosen" is a runtime concern, explicitly **not** in Obsidian. Start with LiteLLM's built-in dashboard (`mac:4000/ui`, opened from Arch); upgrade to Langfuse on the **NAS** later (always-on Docker host, no contention with the Mac's model memory).
 - **GDPR/Presidio deferred.** No customer / sensitive third-party data yet. Also noted: NER masking is best-effort and never a compliance guarantee — so it's "later, and treated as risk-reduction", not a checkbox.
 - **All docs in English.**
+- **Routing-first phasing.** The LiteLLM routing layer (local + cloud, caps, dashboard) is the first milestone — it's the interesting core of the project, not the email triage. Local-model inbox quality gets validated once routing is live, not as a gate before it.
 
 ## What we rejected
 
