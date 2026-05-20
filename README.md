@@ -67,5 +67,5 @@ The routing layer (LiteLLM) is the centerpiece and ships first.
 
 - `docs/superpowers/specs/` — design specs
 - `docs/journal/` — dated decision log (the "why", and the story for a talk)
-- `docs/runbook.md` — how to operate the system (added during implementation)
+- `docs/runbook.md` — how to operate the system
 - `CLAUDE.md` — working conventions

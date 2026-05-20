@@ -39,6 +39,8 @@ This entry records what we kept, what we changed, and **why** — so it can be r
 - **Hermes custom-provider auth:** `key_env` is ignored for the main `model:` block (Hermes sent its `no-key-required` default → HTTP 401 from LiteLLM). Fix: a **literal `api_key`** in the `model:` block. `/model deep` switches model in-session and routes through the gateway.
 - **Local latency is real, and it shapes the architecture.** A trivial turn ("say hello") took ~2m17s on `local` vs **6s** on `deep` (cloud). Breakdown: ~16K-token agentic system prompt (Hermes injects toolsets/memory) processed on the 27B + thinking generation + first-call model load. Cloud is fast because of the hardware. Takeaway: **local = latency-tolerant background work (email triage); interactive/heavy = cloud.** Levers to try: `think: false` for local (~halves it), keep the model warm, trim toolsets, lower `reasoning_effort`.
 
+- **Thinking toggle works via `reasoning_effort`.** `reasoning_effort: none` in the model's `litellm_params` disables qwen3.6's thinking through Ollama (verified: `local` returned 2 tokens, no `reasoning_content`; `local-think` returned a reasoning block). Solved the speed-vs-capability worry without losing reasoning: `local` (off) for routine + routing decisions, `local-think` (on) for synthesis. `keep_alive: -1` keeps the model warm (cold first call ~15s, warm after).
+
 ## Open questions (carry into implementation)
 
 - Exact Ollama tag for the ~24 GB agentic Qwen.

@@ -81,7 +81,7 @@ Cost is bounded independently (Section 6), so routing is chosen for **reliabilit
 
 ## 8. Model choice
 
-- **Local:** `qwen3.6:27b` (Q4_K_M, ~17 GB; official Ollama tag, native tools + thinking, benchmark-leading for its size). One model only. Thinking-by-default; pass `think: false` for fast triage. Q4 only — higher quants are too tight alongside the Docker stack.
+- **Local:** `qwen3.6:27b` (Q4_K_M, ~17 GB; official Ollama tag, native tools + thinking, benchmark-leading for its size). One physical model exposed as two gateway routes: **`local`** (thinking OFF via `reasoning_effort: none`) for fast routine, and **`local-think`** (thinking ON) for local reasoning/synthesis (e.g. drawing conclusions from `deep`'s research). `keep_alive: -1` keeps it resident/warm. Q4 only — higher quants are too tight alongside the Docker stack.
 - **Cloud (OpenRouter):** a strong reasoning / large-context model for research (e.g. DeepSeek-R1 or a Qwen-72B-class model). Pick by required context window + quality; verify the model's real context limit (not all support 200k).
 
 ## 9. Error handling
