@@ -1,8 +1,15 @@
 model_list:
-  - model_name: local
+  - model_name: local            # fast routine: triage, sorting, route decisions (thinking OFF)
     litellm_params:
       model: ollama_chat/qwen3.6:27b
       api_base: http://host.docker.internal:11434
+      keep_alive: -1             # keep model resident: no reload, prompt cache stays warm
+      reasoning_effort: none     # disable thinking for speed
+  - model_name: local-think      # local reasoning/synthesis, e.g. conclusions on deep's research (thinking ON)
+    litellm_params:
+      model: ollama_chat/qwen3.6:27b
+      api_base: http://host.docker.internal:11434
+      keep_alive: -1
   - model_name: deep
     litellm_params:
       model: openrouter/deepseek/deepseek-r1
@@ -14,7 +21,7 @@ model_list:
 litellm_settings:
   drop_params: true
   num_retries: 2
-  context_window_fallbacks: [{"local": ["deep"]}]   # local prompt too big -> deep
+  context_window_fallbacks: [{"local": ["deep"]}, {"local-think": ["deep"]}]   # prompt too big -> deep
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
