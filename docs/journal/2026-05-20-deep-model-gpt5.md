@@ -28,5 +28,5 @@ The instinct was "top up OpenRouter" — but the account screenshot showed **$9.
 
 ## State / pending
 
-- Config written in `mac/litellm-config.yaml` (slugs + context limits verified against OpenRouter's API). **Not yet deployed/tested live** — needs `docker compose --env-file .env restart litellm` on the Mac, then a `/model deep` test call to confirm GPT-5 responds and the dashboard logs it.
+- Config in `mac/litellm-config.yaml` (slugs + context limits verified against OpenRouter's API). **Deployed and verified live:** after `docker compose --env-file .env restart litellm`, a gateway call to `deep` returned a GPT-5 completion via `provider: OpenAI` (cost ~$0.0004, `is_byok:false`) — no third-party providers involved. The fallback wiring is config-only (not force-tested; would require simulating a GPT-5 outage).
 - Open follow-up (with GDPR): no-log / data-collection provider routing for cloud.
