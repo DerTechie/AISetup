@@ -1,11 +1,11 @@
 ---
 name: triage-advisor
-description: Use BEFORE starting any market/strategic/business-research task, multi-source synthesis, or other heavy-reasoning request — and whenever unsure whether to use the local or deep model. Run it FIRST, before any web search or analysis, to recommend local vs deep. Recommend-only: the user confirms the switch; it never changes models itself. (Skip only if already deliberately on the recommended model.)
+description: Use BEFORE starting any market/strategic/business-research task, multi-source synthesis, or other heavy-reasoning request — and whenever unsure whether to use main, private, or deep. Run it FIRST, before any web search or analysis, to recommend main vs private vs deep. Recommend-only: the user confirms the switch; it never changes models itself. (Skip only if already deliberately on the recommended model.)
 ---
 
 # Triage Advisor
 
-Recommend whether the current task should run on the fast **local** model or the **deep** cloud model. **Run this at the START of a qualifying task — before doing web searches or analysis — not after.** The LOCAL model judges; you present its recommendation; the user decides. **Never run `/model` yourself without the user's explicit go-ahead.**
+Recommend whether the current task should stay on the fast default **main** (cloud) model, drop to the on-device **private** model, or escalate to the **deep** cloud model. **Run this at the START of a qualifying task — before doing web searches or analysis — not after.** The **main** model judges; you present its recommendation; the user decides. **Never run `/model` yourself without the user's explicit go-ahead.**
 
 ## How to run
 
@@ -16,7 +16,7 @@ Recommend whether the current task should run on the fast **local** model or the
    python3 ~/.hermes/skills/triage-advisor/triage_advisor.py "<task description>"
    ```
 
-3. Show the script's recommendation to the user verbatim and wait for their decision. On their explicit confirmation: `/model deep` for deep, `/model local` for local.
+3. Show the script's recommendation to the user verbatim and wait for their decision. On their explicit confirmation: `/model deep` for deep, `/model private` for private. If the recommendation is `main`, that is the default — no switch is needed.
 
 ## Rules
 
