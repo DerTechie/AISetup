@@ -226,9 +226,9 @@ def test_format_output_deep_suggests_model_deep():
     assert "won't switch automatically" in out
 
 
-def test_format_output_local_suggests_model_fast():
+def test_format_output_local_suggests_model_local():
     out = format_output(Recommendation("local", "routine", []))
-    assert "/model fast" in out
+    assert "/model local" in out
 
 
 def test_format_output_unknown_shows_raw():
@@ -261,7 +261,7 @@ def format_output(rec: Recommendation) -> str:
     if rec.recommendation == "unknown":
         return ("Could not parse a clean recommendation from the local judge.\n"
                 f"Raw judge output: {rec.reason}")
-    switch = "`/model deep`" if rec.recommendation == "deep" else "`/model fast`"
+    switch = "`/model deep`" if rec.recommendation == "deep" else "`/model local`"
     signals = f" (signals: {', '.join(rec.signals)})" if rec.signals else ""
     return (f"Recommend **{rec.recommendation}** — {rec.reason}{signals}.\n"
             f"Switch with {switch}? (your call — I won't switch automatically.)")
@@ -399,7 +399,7 @@ export LITELLM_MASTER_KEY="sk-..."                  # from mac/.env
 - [ ] **Step 2: Run the script on a routine task**
 
 Run (from skill dir): `.venv/bin/python triage_advisor.py "Summarize today's unread emails into 3 bullets"`
-Expected: prints `Recommend **local** — ...` with a `/model fast` suggestion. The gateway dashboard (`MAC_HOST:4000/ui`) shows a new `local` request.
+Expected: prints `Recommend **local** — ...` with a `/model local` suggestion. The gateway dashboard (`MAC_HOST:4000/ui`) shows a new `local` request.
 
 - [ ] **Step 3: Run the script on a heavy task**
 
@@ -441,7 +441,7 @@ Recommend whether the current task should run on the fast **local** model or the
    python3 ~/.hermes/skills/triage-advisor/triage_advisor.py "<task description>"
    ```
 
-3. Show the script's recommendation to the user verbatim and wait for their decision. On their explicit confirmation: `/model deep` for deep, `/model fast` for local.
+3. Show the script's recommendation to the user verbatim and wait for their decision. On their explicit confirmation: `/model deep` for deep, `/model local` for local.
 
 ## Rules
 
