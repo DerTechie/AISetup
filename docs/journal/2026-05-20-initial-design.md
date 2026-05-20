@@ -36,6 +36,9 @@ This entry records what we kept, what we changed, and **why** — so it can be r
 - **Global budget blocks everything — use a per-model budget.** First attempt used LiteLLM's `litellm_settings.max_budget` (global). The cap test proved it blocks *all* requests once total spend crosses it — including the free `local` model (`"Budget has been exceeded!"` on a local call). That breaks the "local always works" requirement. Fix: move the cap into the `deep` model's `litellm_params` (`max_budget` + `budget_duration`); `local` has no budget and is never blocked. Good reminder that the cap test was worth running — it caught a silent design flaw.
 - **qwen3.6:27b thinks even on trivial prompts:** "reply OK" cost 144 completion tokens locally (vs 18 on deep). Triage will pass `think: false`.
 
+- **Hermes custom-provider auth:** `key_env` is ignored for the main `model:` block (Hermes sent its `no-key-required` default → HTTP 401 from LiteLLM). Fix: a **literal `api_key`** in the `model:` block. `/model deep` switches model in-session and routes through the gateway.
+- **Local latency is real, and it shapes the architecture.** A trivial turn ("say hello") took ~2m17s on `local` vs **6s** on `deep` (cloud). Breakdown: ~16K-token agentic system prompt (Hermes injects toolsets/memory) processed on the 27B + thinking generation + first-call model load. Cloud is fast because of the hardware. Takeaway: **local = latency-tolerant background work (email triage); interactive/heavy = cloud.** Levers to try: `think: false` for local (~halves it), keep the model warm, trim toolsets, lower `reasoning_effort`.
+
 ## Open questions (carry into implementation)
 
 - Exact Ollama tag for the ~24 GB agentic Qwen.

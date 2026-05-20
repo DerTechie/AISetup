@@ -114,7 +114,7 @@ The **routing layer (LiteLLM) is the centerpiece and the first milestone** — l
 ## 12. Open items to verify during implementation
 
 - ~~Exact Ollama tag for the local model.~~ **Resolved: `qwen3.6:27b` (Q4_K_M).**
-- Hermes model-alias / subagent config specifics for the `deep` route, and which API Hermes currently uses.
+- ~~Hermes `deep`-route + API specifics.~~ **Resolved:** Hermes uses an OpenAI-compatible `custom` provider (`base_url` → gateway, model `local`); auth requires a **literal `api_key`** in the `model:` block (`key_env` is *not* honored there — only for fallback/auxiliary). `/model deep` switches the model in-session and routes via the gateway.
 - Whether a Hermes skill can invoke a specific model for the triage advisor.
 - OpenRouter chosen model + real context limit + provider/no-log settings (revisit in Phase 6).
 
