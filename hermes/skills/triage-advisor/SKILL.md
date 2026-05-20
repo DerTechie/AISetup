@@ -1,11 +1,11 @@
 ---
 name: triage-advisor
-description: Use when the user is unsure whether a task should run on the local or deep (cloud) model, OR when a task involves large context, explicit market/strategic/business research, or needs current/web information. Recommends deep vs local — the user confirms; it does NOT switch models itself.
+description: Use BEFORE starting any market/strategic/business-research task, multi-source synthesis, or other heavy-reasoning request — and whenever unsure whether to use the local or deep model. Run it FIRST, before any web search or analysis, to recommend local vs deep. Recommend-only: the user confirms the switch; it never changes models itself. (Skip only if already deliberately on the recommended model.)
 ---
 
 # Triage Advisor
 
-Recommend whether the current task should run on the fast **local** model or the **deep** cloud model. The LOCAL model judges; you present its recommendation; the user decides. **Never run `/model` yourself without the user's explicit go-ahead.**
+Recommend whether the current task should run on the fast **local** model or the **deep** cloud model. **Run this at the START of a qualifying task — before doing web searches or analysis — not after.** The LOCAL model judges; you present its recommendation; the user decides. **Never run `/model` yourself without the user's explicit go-ahead.**
 
 ## How to run
 
