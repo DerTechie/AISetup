@@ -14,14 +14,15 @@ from triage_advisor import (
 def test_build_prompt_includes_rubric_and_task():
     msgs = build_prompt("summarize my inbox")
     assert msgs[0]["role"] == "system"
-    assert "LOCAL" in msgs[0]["content"] and "DEEP" in msgs[0]["content"]
+    content = msgs[0]["content"]
+    assert "MAIN" in content and "DEEP" in content and "PRIVATE" in content
     assert msgs[1]["role"] == "user"
     assert "summarize my inbox" in msgs[1]["content"]
 
 
 def test_parse_missing_signals_defaults_to_empty_list():
-    rec = parse_recommendation('{"recommendation": "local", "reason": "routine"}')
-    assert rec.recommendation == "local"
+    rec = parse_recommendation('{"recommendation": "main", "reason": "routine"}')
+    assert rec.recommendation == "main"
     assert rec.signals == []
 
 
@@ -33,10 +34,21 @@ def test_parse_valid_json():
     assert rec.signals == ["strategic"]
 
 
+def test_parse_private_recommendation_is_valid():
+    rec = parse_recommendation('{"recommendation": "private", "reason": "sensitive data"}')
+    assert rec.recommendation == "private"
+
+
 def test_parse_malformed_falls_back_to_unknown():
     rec = parse_recommendation("I think you should use deep, definitely")
     assert rec.recommendation == "unknown"
     assert "deep" in rec.reason
+
+
+def test_parse_legacy_local_value_is_now_unknown():
+    # "local" was the old route name; it must no longer validate.
+    rec = parse_recommendation('{"recommendation": "local", "reason": "x"}')
+    assert rec.recommendation == "unknown"
 
 
 def test_parse_unexpected_recommendation_value_is_unknown():
@@ -45,10 +57,10 @@ def test_parse_unexpected_recommendation_value_is_unknown():
 
 
 def test_format_log_line_is_valid_jsonl():
-    rec = Recommendation("local", "routine", ["summary"])
+    rec = Recommendation("main", "routine", ["summary"])
     when = datetime(2026, 5, 20, 12, 0, tzinfo=timezone.utc)
     data = json.loads(format_log_line(rec, "my task", when))
-    assert data["recommendation"] == "local"
+    assert data["recommendation"] == "main"
     assert data["task"] == "my task"
     assert data["reason"] == "routine"
     assert data["signals"] == ["summary"]
@@ -56,15 +68,21 @@ def test_format_log_line_is_valid_jsonl():
 
 
 def test_format_output_deep_suggests_model_deep():
-    out = format_output(Recommendation("deep", "needs big context", ["large-context"]))
+    out = format_output(Recommendation("deep", "needs heavy reasoning", ["strategic"]))
     assert "deep" in out
     assert "/model deep" in out
     assert "won't switch automatically" in out
 
 
-def test_format_output_local_suggests_model_local():
-    out = format_output(Recommendation("local", "routine", []))
-    assert "/model local" in out
+def test_format_output_private_suggests_model_private():
+    out = format_output(Recommendation("private", "sensitive data", []))
+    assert "/model private" in out
+
+
+def test_format_output_main_says_stay_no_switch():
+    out = format_output(Recommendation("main", "routine drafting", []))
+    assert "main" in out
+    assert "/model" not in out  # main is the default; no switch command
 
 
 def test_format_output_unknown_shows_raw():
@@ -87,15 +105,15 @@ def test_call_gateway_posts_and_extracts_content(monkeypatch):
         captured["body"] = json.loads(req.data)
         captured["auth"] = req.headers.get("Authorization")
         return FakeResp(
-            {"choices": [{"message": {"content": '{"recommendation": "local", "reason": "ok"}'}}]})
+            {"choices": [{"message": {"content": '{"recommendation": "main", "reason": "ok"}'}}]})
 
     monkeypatch.setattr(triage_advisor.urllib.request, "urlopen", fake_urlopen)
     content = triage_advisor.call_gateway(
         [{"role": "user", "content": "hi"}], "http://mac:4000/v1", "sk-test")
     assert captured["url"] == "http://mac:4000/v1/chat/completions"
-    assert captured["body"]["model"] == "local"
+    assert captured["body"]["model"] == "main"
     assert captured["auth"] == "Bearer sk-test"
-    assert "local" in content
+    assert "main" in content
 
 
 def test_main_missing_task_returns_2():
@@ -122,7 +140,7 @@ def test_read_hermes_config_creds_parses_model_block(tmp_path):
     cfg = tmp_path / "config.yaml"
     cfg.write_text(
         "model:\n"
-        "  default: local\n"
+        "  default: main\n"
         "  provider: custom\n"
         "  base_url: http://10.63.0.32:4000/v1\n"
         "  api_key: sk-secret\n"
@@ -162,7 +180,7 @@ def test_main_falls_back_to_config_when_env_missing(monkeypatch, tmp_path):
     def fake_call(messages, base_url, api_key):
         captured["base_url"] = base_url
         captured["api_key"] = api_key
-        return '{"recommendation": "local", "reason": "ok"}'
+        return '{"recommendation": "main", "reason": "ok"}'
     monkeypatch.setattr(triage_advisor, "call_gateway", fake_call)
     assert triage_advisor.main(["prog", "summarize this"]) == 0
     assert captured["base_url"] == "http://mac:4000/v1"

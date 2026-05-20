@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Triage advisor: ask the local model whether a task should run on `local` or `deep`."""
+"""Triage advisor: ask the `main` model whether a task should run on `main`, `private`, or `deep`."""
 from __future__ import annotations
 
 import json
@@ -10,29 +10,33 @@ import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-JUDGE_MODEL = "local"
+JUDGE_MODEL = "main"
 
 RUBRIC = """You are a routing advisor for an AI agent. The agent fetches data and runs \
 tools (email, web, files) by itself, regardless of which model it uses. So do NOT route a \
-task to the deep model just because it involves emails, files, web pages, or \
-current/external data. Routing depends ONLY on how much reasoning the task needs.
+task to a different model just because it involves emails, files, web pages, or \
+current/external data. Routing depends on how much reasoning the task needs and whether it \
+must stay on-device.
 
-Recommend LOCAL (fast, free, private) for routine work: triage, summarizing, drafting, \
-extracting, classifying, and simple Q&A — even when the task operates on external or \
-current data.
+Recommend MAIN (the fast default cloud model) for routine work: triage, summarizing, \
+drafting, extracting, classifying, and simple Q&A — even when the task operates on external \
+or current data. MAIN is the default; prefer it unless a clear reason below applies.
 
 Recommend DEEP (stronger cloud reasoning) only when the task needs heavy multi-step \
 reasoning or synthesis — strategic or market analysis, comparing many sources, or drawing \
-non-obvious conclusions — i.e. when the local model's answer quality would likely be \
-insufficient.
+non-obvious conclusions — i.e. when MAIN's answer quality would likely be insufficient.
+
+Recommend PRIVATE (the on-device local model — free but slow) only when the task handles \
+sensitive data that should not leave the machine, or is high-volume bulk work where zero \
+cost matters and the slowness is acceptable.
 
 Respond with ONLY a JSON object, no prose, in exactly this shape:
-{"recommendation": "local" | "deep", "reason": "<one short sentence>", "signals": ["<signal>", ...]}"""
+{"recommendation": "main" | "deep" | "private", "reason": "<one short sentence>", "signals": ["<signal>", ...]}"""
 
 
 @dataclass
 class Recommendation:
-    recommendation: str  # "local" | "deep" | "unknown"
+    recommendation: str  # "main" | "private" | "deep" | "unknown"
     reason: str
     signals: list[str] = field(default_factory=list)
 
@@ -48,7 +52,7 @@ def parse_recommendation(raw: str) -> Recommendation:
     try:
         data = json.loads(raw)
         rec = data["recommendation"]
-        if rec not in ("local", "deep"):
+        if rec not in ("main", "private", "deep"):
             raise ValueError(f"unexpected recommendation: {rec!r}")
         return Recommendation(
             recommendation=rec,
@@ -71,12 +75,15 @@ def format_log_line(rec: Recommendation, task: str, when: datetime) -> str:
 
 def format_output(rec: Recommendation) -> str:
     if rec.recommendation == "unknown":
-        return ("Could not parse a clean recommendation from the local judge.\n"
+        return ("Could not parse a clean recommendation from the judge.\n"
                 f"Raw judge output: {rec.reason}")
-    switch = "`/model deep`" if rec.recommendation == "deep" else "`/model local`"
     signals = f" (signals: {', '.join(rec.signals)})" if rec.signals else ""
+    if rec.recommendation == "main":
+        action = "Stay on `main` (the default) — no switch needed"
+    else:
+        action = f"Switch with `/model {rec.recommendation}`?"
     return (f"Recommend **{rec.recommendation}** — {rec.reason}{signals}.\n"
-            f"Switch with {switch}? (your call — I won't switch automatically.)")
+            f"{action} (your call — I won't switch automatically.)")
 
 
 def read_hermes_config_creds(config_path: str) -> tuple[str | None, str | None]:
