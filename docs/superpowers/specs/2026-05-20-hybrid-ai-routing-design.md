@@ -109,7 +109,12 @@ The **routing layer (LiteLLM) is the centerpiece and the first milestone** — l
    - **1c — Wire Hermes:** point Hermes' main model at LiteLLM (default `local`); verify `/model deep` reaches cloud and the dashboard shows model / tokens / cost; confirm the cap blocks cloud with a clear error.
 2. **Triage advisor skill** (recommend / local-judge).
 3. **Langfuse on the NAS.**
-4. **(Deferred)** Presidio anonymization + GDPR hardening.
+4. **Local inference optimization (Mac engine).** Reduce local latency by changing only the engine behind the gateway's `local` / `local-think` routes — nothing downstream is touched (the gateway isolates the engine). Empirical and persisted for the talk.
+   - **Levers (prefill is the dominant cost, so decode-side levers rank low):** (1) engine bake-off — **MLX** (via LM Studio's OpenAI-compatible server, for keep-warm + ops) vs **tuned Ollama** (`OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q8_0`, bounded `num_ctx`); (2) quantization (MLX 4-bit vs Ollama Q4_K_M; test higher quants if MLX frees memory); (3) KV-cache / context tuning; (4) wired-memory limit (`sudo sysctl iogpu.wired_limit_mb=28000`); (5) speculative decoding — low priority / likely deferred (decode isn't the bottleneck and a draft model is tight on 32 GB).
+   - **Method:** one standard benchmark turn (the real ~16K-token Hermes system prompt + a representative routine prompt); measure **TTFT (prefill)** and **decode tok/s**, warm vs cold, think on/off, repeated N times. Capture the **Ollama baseline first**, then run each candidate through the same harness *via the gateway* (apples-to-apples). Phase 3's Langfuse traces are the measurement substrate; results go into a dated journal entry as a table.
+   - **Decision criterion:** fastest config that preserves (a) **tool/function calling** (Hermes is agentic), (b) the **thinking on/off** toggle parity that `local` vs `local-think` depends on, and (c) memory headroom alongside the Docker stack. If MLX wins, migrate by repointing the two routes; keep Ollama as instant rollback until validated. Update `runbook.md` and `README.md` then.
+   - **Out of scope (separate effort):** trimming Hermes' 16K system prompt / toolsets — the other big prefill lever, but Hermes-side, not Mac engine.
+5. **(Deferred)** Presidio anonymization + GDPR hardening.
 
 ## 12. Open items to verify during implementation
 
@@ -117,6 +122,7 @@ The **routing layer (LiteLLM) is the centerpiece and the first milestone** — l
 - ~~Hermes `deep`-route + API specifics.~~ **Resolved:** Hermes uses an OpenAI-compatible `custom` provider (`base_url` → gateway, model `local`); auth requires a **literal `api_key`** in the `model:` block (`key_env` is *not* honored there — only for fallback/auxiliary). `/model deep` switches the model in-session and routes via the gateway.
 - Whether a Hermes skill can invoke a specific model for the triage advisor.
 - OpenRouter chosen model + real context limit + provider/no-log settings (revisit in Phase 6).
+- **Phase 4 (local inference optimization), verify when reached, not now:** does the MLX / LM Studio server do reliable **tool/function calling** (deal-breaker for agentic use if not)? Does it honor a **thinking on/off** toggle equivalent to `reasoning_effort: none` (may need two served instances or a chat-template flag)? MLX **keep-warm + auto-start** on headless login, matching Ollama's `keep_alive: -1` + launch-on-login.
 
 ## 13. Success criteria
 
