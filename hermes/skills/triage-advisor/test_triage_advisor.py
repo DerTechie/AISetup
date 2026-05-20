@@ -12,3 +12,25 @@ def test_build_prompt_includes_rubric_and_task():
 def test_recommendation_defaults_signals_to_empty_list():
     rec = Recommendation("local", "routine")
     assert rec.signals == []
+
+
+from triage_advisor import parse_recommendation
+
+
+def test_parse_valid_json():
+    raw = '{"recommendation": "deep", "reason": "market analysis", "signals": ["strategic"]}'
+    rec = parse_recommendation(raw)
+    assert rec.recommendation == "deep"
+    assert rec.reason == "market analysis"
+    assert rec.signals == ["strategic"]
+
+
+def test_parse_malformed_falls_back_to_unknown():
+    rec = parse_recommendation("I think you should use deep, definitely")
+    assert rec.recommendation == "unknown"
+    assert "deep" in rec.reason
+
+
+def test_parse_unexpected_recommendation_value_is_unknown():
+    rec = parse_recommendation('{"recommendation": "cloud", "reason": "x"}')
+    assert rec.recommendation == "unknown"
