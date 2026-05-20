@@ -10,18 +10,26 @@ model_list:
       model: ollama_chat/qwen3.6:27b
       api_base: http://host.docker.internal:11434
       keep_alive: -1
-  - model_name: deep
+  - model_name: deep             # cloud research: GPT-5 (served first-party by OpenAI + Azure)
     litellm_params:
-      model: openrouter/deepseek/deepseek-r1
+      model: openrouter/openai/gpt-5
       api_key: os.environ/OPENROUTER_API_KEY
-      max_tokens: 8000          # default completion ceiling per request
-      max_budget: 100           # USD - hard cap on CLOUD (deep) spend only (~EUR92)
+      max_tokens: 8000          # default completion ceiling per request (GPT-5 caps at 128k)
+      max_budget: 75            # USD - primary cloud cap; 75 + fallback 25 = <=100 total (~EUR92)
       budget_duration: 30d      # cloud budget window
+  - model_name: deep-fallback    # used only if `deep` (GPT-5) errors/outage; different vendor
+    litellm_params:
+      model: openrouter/google/gemini-3.1-pro-preview
+      api_key: os.environ/OPENROUTER_API_KEY
+      max_tokens: 8000          # Gemini 3.1 Pro caps at 65k; 1M context
+      max_budget: 25            # USD - outage-only insurance; keeps total cloud cap at <=100
+      budget_duration: 30d
 
 litellm_settings:
   drop_params: true
   num_retries: 2
   context_window_fallbacks: [{"local": ["deep"]}, {"local-think": ["deep"]}]   # prompt too big -> deep
+  fallbacks: [{"deep": ["deep-fallback"]}]   # deep (GPT-5) vendor outage/error -> Gemini (different vendor)
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY

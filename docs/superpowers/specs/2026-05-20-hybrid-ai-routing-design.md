@@ -70,8 +70,9 @@ Cost is bounded independently (Section 6), so routing is chosen for **reliabilit
 
 ## 6. Cost control
 
-- Cloud budget is scoped to the **`deep` model only** (`max_budget: 100` USD + `budget_duration: 30d` in its `litellm_params`), **not** the global `litellm_settings.max_budget`. The global budget blocks *all* requests — including the free `local` model — once total spend crosses it (verified the hard way during implementation), which we explicitly do not want. Plus a per-request `max_tokens` on `deep`.
-- **Behavior at cap:** `deep` is **blocked with a clear `budget_exceeded` error**; `local` (no budget) keeps working. Never silently downgrade a deep task to local.
+- Cloud budgets are scoped to the **cloud models only** (per-model `max_budget` + `budget_duration` in `litellm_params`), **not** the global `litellm_settings.max_budget`. The global budget blocks *all* requests — including the free `local` model — once total spend crosses it (verified the hard way during implementation), which we explicitly do not want. Plus a per-request `max_tokens` on each cloud model.
+- **Split cap preserves the €100 ceiling:** `deep` (GPT-5) `max_budget: 75` + `deep-fallback` (Gemini) `max_budget: 25` — the two independent caps **sum to ≤100 USD (~€92)**, so total cloud spend still cannot exceed the ceiling even with the fallback. €75 is ample for light, occasional deep use (~$0.08/call).
+- **Behavior at cap:** the capped cloud model is **blocked with a clear `budget_exceeded` error**; `local` (no budget) keeps working. Never silently downgrade a deep task to local — though `deep` may error-fall-back to `deep-fallback` (another *cloud* model, still capped), which is not a downgrade to local.
 
 ## 7. Observability
 
@@ -82,7 +83,7 @@ Cost is bounded independently (Section 6), so routing is chosen for **reliabilit
 ## 8. Model choice
 
 - **Local:** `qwen3.6:27b` (Q4_K_M, ~17 GB; official Ollama tag, native tools + thinking, benchmark-leading for its size). One physical model exposed as two gateway routes: **`local`** (thinking OFF via `reasoning_effort: none`) for fast routine, and **`local-think`** (thinking ON) for local reasoning/synthesis (e.g. drawing conclusions from `deep`'s research). `keep_alive: -1` keeps it resident/warm. Q4 only — higher quants are too tight alongside the Docker stack.
-- **Cloud (OpenRouter):** a strong reasoning / large-context model for research (e.g. DeepSeek-R1 or a Qwen-72B-class model). Pick by required context window + quality; verify the model's real context limit (not all support 200k).
+- **Cloud (OpenRouter):** **`deep` = GPT-5** (`openrouter/openai/gpt-5`, 400K context, 128K max output, ~$1.25/$10 per M), with **`deep-fallback` = Gemini 3.1 Pro Preview** (`openrouter/google/gemini-3.1-pro-preview`, 1M context, ~$2/$12) wired via LiteLLM error-fallbacks. Rationale: `deep` is rare, explicitly-invoked, and hard-capped, so frontier quality (the whole reason to escalate) costs little in absolute terms (~$0.08/call) and stays under the cap. Frontier models are **first-party served** — GPT-5 even has dual providers (OpenAI + Azure) — which avoids the flaky cheap third-party providers that broke the earlier choice. The cross-vendor fallback gives redundancy a single first-party model can't. **Rejected: DeepSeek-R1** — only two providers on OpenRouter, the cheap one (Novita) returned a persistent `NOT_ENOUGH_BALANCE` 403 (isolated to Novita; Azure worked), and the reliable one (Azure) caps output at 4096 — too tight for a reasoning model. See journal `2026-05-20-deep-model-gpt5.md`.
 
 ## 9. Error handling
 
@@ -126,7 +127,7 @@ The **routing layer (LiteLLM) is the centerpiece and the first milestone** — l
 - ~~Exact Ollama tag for the local model.~~ **Resolved: `qwen3.6:27b` (Q4_K_M).**
 - ~~Hermes `deep`-route + API specifics.~~ **Resolved:** Hermes uses an OpenAI-compatible `custom` provider (`base_url` → gateway, model `local`); auth requires a **literal `api_key`** in the `model:` block (`key_env` is *not* honored there — only for fallback/auxiliary). `/model deep` switches the model in-session and routes via the gateway.
 - ~~Whether a Hermes skill can invoke a specific model for the triage advisor.~~ **Resolved (sidestepped):** the triage advisor skill calls the gateway's `local` route over HTTP directly rather than relying on Hermes-internal model invocation — engine-agnostic and independent of undocumented Hermes internals.
-- OpenRouter chosen model + real context limit + provider/no-log settings (revisit in Phase 6).
+- ~~OpenRouter chosen model + real context limit + provider/no-log settings.~~ **Resolved:** `deep` = GPT-5 (`openrouter/openai/gpt-5`, verified 400K context / 128K output, dual first-party providers), `deep-fallback` = Gemini 3.1 Pro Preview (`openrouter/google/gemini-3.1-pro-preview`, 1M context). Chosen after the DeepSeek-R1/Novita outage; see journal `2026-05-20-deep-model-gpt5.md`. (No-log/data-collection routing still deferred with GDPR.)
 - **Phase 4 (local inference optimization), verify when reached, not now:** does the MLX / LM Studio server do reliable **tool/function calling** (deal-breaker for agentic use if not)? Does it honor a **thinking on/off** toggle equivalent to `reasoning_effort: none` (may need two served instances or a chat-template flag)? MLX **keep-warm + auto-start** on headless login, matching Ollama's `keep_alive: -1` + launch-on-login.
 
 ## 13. Success criteria

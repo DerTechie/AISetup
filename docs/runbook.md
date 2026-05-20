@@ -51,8 +51,9 @@ Dashboard: `http://10.63.0.32:4000/ui` (login `UI_USERNAME` / `UI_PASSWORD`).
 
 ## Cost control
 
-- Hard cap on **cloud only**: `deep` model `max_budget: 100` (USD) / `budget_duration: 30d` in `litellm-config.yaml`.
-- At cap: `deep` is blocked with a `budget_exceeded` (429) error; `local`/`local-think` keep working.
+- Cloud models: `deep` = GPT-5 (`openrouter/openai/gpt-5`), `deep-fallback` = Gemini 3.1 Pro Preview (`openrouter/google/gemini-3.1-pro-preview`, used only if `deep` errors).
+- Hard cap on **cloud only**, split so the total stays ≤100 USD (~€92): `deep` `max_budget: 75` + `deep-fallback` `max_budget: 25` / `budget_duration: 30d` in `litellm-config.yaml`.
+- At cap: the capped model is blocked with a `budget_exceeded` (429) error; `local`/`local-think` keep working.
 
 ## Secrets
 
@@ -66,6 +67,7 @@ Dashboard: `http://10.63.0.32:4000/ui` (login `UI_USERNAME` / `UI_PASSWORD`).
 - **SSH terminal garbled** (backspace wrong) → connect with `TERM=xterm-256color ssh 10.63.0.32`.
 - **First call ~15 s** → cold model load; `keep_alive: -1` keeps it warm afterward.
 - **401 from gateway** → Hermes `api_key` must be the literal master key (`key_env` is not honored on the main `model:` block).
+- **`deep` → 403 `NOT_ENOUGH_BALANCE`** → it's an upstream *provider* error (OpenRouter's own out-of-credit is 402), **not** your key/balance. Isolate with a direct OpenRouter curl forcing `provider: {"order":["<provider>"],"allow_fallbacks":false}`. Fix is provider routing (`ignore`/`only`) or picking a model with reliable providers — this is why `deep` is GPT-5 (first-party OpenAI+Azure) with a Gemini fallback.
 
 ## Triage advisor (Phase 2)
 - Skill source: `hermes/skills/triage-advisor/` (repo); deployed to `~/.hermes/skills/triage-advisor/`.
