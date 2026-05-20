@@ -65,7 +65,7 @@ def format_output(rec: Recommendation) -> str:
     if rec.recommendation == "unknown":
         return ("Could not parse a clean recommendation from the local judge.\n"
                 f"Raw judge output: {rec.reason}")
-    switch = "`/model deep`" if rec.recommendation == "deep" else "`/model fast`"
+    switch = "`/model deep`" if rec.recommendation == "deep" else "`/model local`"
     signals = f" (signals: {', '.join(rec.signals)})" if rec.signals else ""
     return (f"Recommend **{rec.recommendation}** — {rec.reason}{signals}.\n"
             f"Switch with {switch}? (your call — I won't switch automatically.)")

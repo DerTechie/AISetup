@@ -16,7 +16,7 @@ Recommend whether the current task should run on the fast **local** model or the
    python3 ~/.hermes/skills/triage-advisor/triage_advisor.py "<task description>"
    ```
 
-3. Show the script's recommendation to the user verbatim and wait for their decision. On their explicit confirmation: `/model deep` for deep, `/model fast` for local.
+3. Show the script's recommendation to the user verbatim and wait for their decision. On their explicit confirmation: `/model deep` for deep, `/model local` for local.
 
 ## Rules
 

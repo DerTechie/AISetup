@@ -62,9 +62,9 @@ def test_format_output_deep_suggests_model_deep():
     assert "won't switch automatically" in out
 
 
-def test_format_output_local_suggests_model_fast():
+def test_format_output_local_suggests_model_local():
     out = format_output(Recommendation("local", "routine", []))
-    assert "/model fast" in out
+    assert "/model local" in out
 
 
 def test_format_output_unknown_shows_raw():
