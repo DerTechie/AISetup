@@ -152,7 +152,7 @@ def main(argv: list[str]) -> int:
         print(f"Could not reach gateway: {exc.reason}", file=sys.stderr)
         return 1
     except TimeoutError:
-        print("Could not reach gateway: timed out (is the local model loading?)",
+        print("Could not reach gateway: timed out (is the gateway reachable?)",
               file=sys.stderr)
         return 1
     rec = parse_recommendation(raw)

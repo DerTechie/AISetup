@@ -77,6 +77,7 @@ def test_format_output_deep_suggests_model_deep():
 def test_format_output_private_suggests_model_private():
     out = format_output(Recommendation("private", "sensitive data", []))
     assert "/model private" in out
+    assert "won't switch automatically" in out
 
 
 def test_format_output_main_says_stay_no_switch():
