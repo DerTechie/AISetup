@@ -3,6 +3,7 @@
 - **Date:** 2026-05-20
 - **Status:** Approved (design phase) — implementation not started
 - **Owner:** DerTechie
+- **⚠️ Superseded in part:** §5 (Routing), §6 (Cost control), §8 (Model choice), and §13 (Success criteria) are revised by [`2026-05-20-model-route-roles-redesign.md`](2026-05-20-model-route-roles-redesign.md): routes are renamed `main`/`private`/`deep`, the default brain is now a fast cloud model (GPT-5-mini) rather than local, and the budget splits three ways ($50/$35/$15). Where the two conflict, the redesign wins.
 
 ## 1. Purpose & Goals
 
