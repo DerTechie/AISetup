@@ -1,0 +1,20 @@
+model_list:
+  - model_name: local
+    litellm_params:
+      model: ollama_chat/qwen3.6:27b
+      api_base: http://host.docker.internal:11434
+  - model_name: deep
+    litellm_params:
+      model: openrouter/deepseek/deepseek-r1
+      api_key: os.environ/OPENROUTER_API_KEY
+      max_tokens: 8000          # default completion ceiling per request
+
+litellm_settings:
+  drop_params: true
+  num_retries: 2
+  context_window_fallbacks: [{"local": ["deep"]}]   # local prompt too big -> deep
+  max_budget: 100               # USD, global, hard cap (~EUR92). Adjust to taste.
+  budget_duration: 30d
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
