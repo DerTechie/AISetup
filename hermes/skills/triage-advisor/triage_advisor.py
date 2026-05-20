@@ -12,11 +12,19 @@ from datetime import datetime, timezone
 
 JUDGE_MODEL = "local"
 
-RUBRIC = """You are a routing advisor for an AI agent. Decide whether a task should run \
-on the LOCAL model (fast, free, private; good for routine triage, summaries, drafting, \
-simple Q&A) or the DEEP cloud model (stronger reasoning + large context; for heavy \
-strategic/market research, tasks needing large context, or tasks needing current/web \
-information).
+RUBRIC = """You are a routing advisor for an AI agent. The agent fetches data and runs \
+tools (email, web, files) by itself, regardless of which model it uses. So do NOT route a \
+task to the deep model just because it involves emails, files, web pages, or \
+current/external data. Routing depends ONLY on how much reasoning the task needs.
+
+Recommend LOCAL (fast, free, private) for routine work: triage, summarizing, drafting, \
+extracting, classifying, and simple Q&A — even when the task operates on external or \
+current data.
+
+Recommend DEEP (stronger cloud reasoning) only when the task needs heavy multi-step \
+reasoning or synthesis — strategic or market analysis, comparing many sources, or drawing \
+non-obvious conclusions — i.e. when the local model's answer quality would likely be \
+insufficient.
 
 Respond with ONLY a JSON object, no prose, in exactly this shape:
 {"recommendation": "local" | "deep", "reason": "<one short sentence>", "signals": ["<signal>", ...]}"""
