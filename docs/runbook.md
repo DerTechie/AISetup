@@ -12,12 +12,14 @@ How to operate the hybrid gateway. See the [design spec](superpowers/specs/2026-
 
 | Route | Backend | Use |
 |---|---|---|
-| `local` | qwen3.6:27b, thinking **off** (`reasoning_effort: none`) | Fast routine: triage, sorting, route decisions |
-| `local-think` | qwen3.6:27b, thinking **on** | Local reasoning/synthesis (e.g. conclusions on `deep`'s research) |
-| `deep` | OpenRouter `deepseek/deepseek-r1` | Heavy research / large context |
+| `main` | OpenRouter `openai/gpt-5-mini` (cloud) | **Default brain.** Orchestration + routine: triage, drafting, summarizing, route decisions. Fast, every turn. |
+| `private` | qwen3.6:27b on Ollama, thinking **off** | On-device work where privacy or €0 is worth the latency (slow). Also the email-triage pin. |
+| `deep` | OpenRouter `openai/gpt-5` | Heavy research / strategic reasoning / large context. |
+| `deep-fallback` | OpenRouter `google/gemini-3.1-pro-preview` | Reliability backstop; used only if `deep` errors. |
 
-- Oversized prompts auto-fall back `local`/`local-think` → `deep` (`context_window_fallbacks`).
-- `keep_alive: -1` keeps the model resident (~17 GB always in memory; warm responses).
+- **At its budget cap, `main` degrades to `private`** (slow local brain) via LiteLLM `fallbacks` — the agent stays alive and the hard cap holds.
+- **No automatic context fallback:** the triage advisor decides where an oversized prompt goes (it is not hardwired).
+- `keep_alive: -1` keeps the local model resident (~17 GB always in memory; warm `private` responses).
 
 ## Start / stop the gateway (on the Mac, in `~/AISetup/mac`)
 
@@ -39,21 +41,22 @@ docker compose --env-file .env logs -f litellm    # logs
 
 ```bash
 curl http://10.63.0.32:4000/health/liveliness                       # -> "I'm alive!"
-curl http://10.63.0.32:4000/v1/models -H "Authorization: Bearer $KEY"  # -> local, local-think, deep
+curl http://10.63.0.32:4000/v1/models -H "Authorization: Bearer $KEY"  # -> main, private, deep, deep-fallback
 ```
 Dashboard: `http://10.63.0.32:4000/ui` (login `UI_USERNAME` / `UI_PASSWORD`).
 
 ## Hermes (Arch)
 
-- `~/.hermes/config.yaml`: `model.provider: custom`, `base_url: http://10.63.0.32:4000/v1`, `default: local`, `api_key: <litellm master key literal>`.
-- Switch model in a session: `/model deep`, `/model local-think`, `/model local`.
+- `~/.hermes/config.yaml`: `model.provider: custom`, `base_url: http://10.63.0.32:4000/v1`, `default: main`, `api_key: <litellm master key literal>`.
+- Switch model in a session: `/model deep` (heavy research), `/model private` (on-device/private). `main` is the default — no switch needed to return to it.
+- Pin email triage to `private` so sensitive inbox content stays on-device even though the brain is cloud.
 - Config backups: `~/.hermes/config.yaml.bak-*`.
 
 ## Cost control
 
-- Cloud models: `deep` = GPT-5 (`openrouter/openai/gpt-5`), `deep-fallback` = Gemini 3.1 Pro Preview (`openrouter/google/gemini-3.1-pro-preview`, used only if `deep` errors).
-- Hard cap on **cloud only**, split so the total stays ≤100 USD (~€92): `deep` `max_budget: 75` + `deep-fallback` `max_budget: 25` / `budget_duration: 30d` in `litellm-config.yaml`.
-- At cap: the capped model is blocked with a `budget_exceeded` (429) error; `local`/`local-think` keep working.
+- Cloud models: `main` = GPT-5-mini (`openrouter/openai/gpt-5-mini`, the default brain), `deep` = GPT-5 (`openrouter/openai/gpt-5`), `deep-fallback` = Gemini 3.1 Pro Preview (used only if `deep` errors).
+- Hard cap on **cloud only**, split so the total stays ≤100 USD (~€92): `main` `max_budget: 50` + `deep` `max_budget: 35` + `deep-fallback` `max_budget: 15` / `budget_duration: 30d` in `litellm-config.yaml`. (`private` is local and intentionally uncapped, so it always works.)
+- At cap: the capped cloud model is blocked with a `budget_exceeded` (429) error. **`main` then degrades to `private`** (slow but free) so the agent keeps working; `private` itself has no budget.
 
 ## Secrets
 
@@ -74,6 +77,6 @@ Dashboard: `http://10.63.0.32:4000/ui` (login `UI_USERNAME` / `UI_PASSWORD`).
 - Manual use: ask Hermes to use the triage advisor, or run
   `python3 ~/.hermes/skills/triage-advisor/triage_advisor.py "<task>"`.
 - Reads gateway creds from `~/.hermes/config.yaml` (`model.base_url` + `model.api_key`) automatically; override with `LITELLM_BASE_URL` + `LITELLM_MASTER_KEY` env vars if needed.
-- Judge runs on the `local` (no-think) route. Recommend-only — it never switches models.
+- Judge runs on the `main` route (fast cloud) — running it on the slow `private` model would cost ~2 min per recommendation. Costs a fraction of a cent. Recommend-only — it never switches models.
+- Recommends one of `main` (stay, the default), `private` (on-device), or `deep` (escalate).
 - Recommendations are logged to `~/.hermes/triage-advisor.jsonl` (review before considering auto-routing).
-- To deepen judgment: set `JUDGE_MODEL = "local-think"` in `triage_advisor.py` and redeploy.
