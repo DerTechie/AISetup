@@ -60,8 +60,14 @@ ACTION). The flat `num_batch` result itself stands.
 
 q8_0 costs nothing in speed and frees ~2.6 GiB — but that headroom only pays off if we add a draft model in WS3. **Not persisted** (would require running Ollama as a managed `ollama serve`/LaunchAgent instead of the macOS app, since the app ignores the env var). Gate persistence on the WS3 go/no-go.
 
-**Bottom line:** the real bottleneck is generation at ~11 tok/s — untouched by WS2. Per web
-research (2026-05-21): **MLX (WS4) is dropped** — it slows prefill on M2 (no native bf16), its
-decode edge vanishes at 27B, and it risks the prompt-cache win. One ingest question remains open —
-the `n_ubatch` micro-batch (see WS2a caveat above), to be tested via llama.cpp. After that, the only
-generation lever is WS3 (speculative decoding with the pulled `qwen3:4b` draft, needs the q8_0 headroom).
+**Bottom line:** the real bottleneck is generation at ~11 tok/s — untouched by WS2. Deeper research
+on 2026-05-21 (two arxiv studies, 2511.05502 + 2512.23029) **reframed the next steps** (see RESUME
+"Web research, round 2" and the journal correction):
+- The current model is **dense 27.8B** → reads all ~16 GB/token → that *is* the 11 tok/s wall. The
+  fast "Qwen 30B" everyone benchmarks is **Qwen3-30B-A3B (MoE, ~3B active)** → ~2 GB/token →
+  potentially 40–80 tok/s, at high quality (MMLU 83% / AIME 73–90%). **Biggest generation lever;
+  benchmarked next — with the intelligence delta vs the dense model documented.**
+- **MLX is un-dropped:** it's the *fastest* Apple-native decode (~230 vs Ollama's 20–40 tok/s) and
+  *does* support prompt caching. Its win is decode, not ingest. Kept as the next backend test.
+- `n_ubatch` ingest sweep (llama.cpp) demoted — only if cold ingest still matters after the
+  generation work. WS3 speculative decoding remains a fallback for the dense model.

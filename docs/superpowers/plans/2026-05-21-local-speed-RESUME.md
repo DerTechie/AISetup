@@ -1,10 +1,16 @@
-# RESUME — Local-speed optimization (state as of 2026-05-21 ~05:30)
+# RESUME — Local-speed optimization (state as of 2026-05-21 ~06:30)
 
 Pick up here after a context clear. Read this top-to-bottom, then continue at **"NEXT ACTION"**.
 
-> **Tomorrow's job (2026-05-22):** run the **`n_ubatch` sweep via llama.cpp** described under
-> NEXT ACTION. Everything needed is in this file. Owner already decided: do the llama.cpp test,
-> **drop MLX (WS4)**, keep WS3 in reserve.
+> **Tomorrow's job (2026-05-22):** **benchmark the MoE model swap first** — pull a Qwen3 *30B-A3B*
+> (Mixture-of-Experts, ~3B active) and compare **decode speed AND intelligence** head-to-head against
+> the current dense `qwen3.6:27b`. Owner explicitly wants the **quality/intelligence loss documented**,
+> not just the speed gain. See NEXT ACTION. MLX (WS4) is **un-dropped** (kept as the next backend test);
+> `n_ubatch` ingest test demoted to "only if cold ingest still matters after the generation work".
+>
+> **Why this changed (2026-05-21 deeper research):** two rigorous arxiv papers overturned the earlier
+> "drop MLX" call and surfaced a bigger lever. See the "Web research" section below — read it before
+> acting.
 
 ## Where we are
 
@@ -66,78 +72,104 @@ Full numbers in `mac/bench/results.md` → "After WS2"; story in
 - Gateway: `http://10.63.0.32:4000/v1`; key in `~/.hermes/config.yaml` `model.api_key`.
   Health: `curl http://10.63.0.32:4000/health/liveliness`.
 
-## Web research (2026-05-21) — what it changed
+## Web research (2026-05-21) — what it changed (TWO ROUNDS; round 2 overturned round 1)
 
-Did a web sweep on "what improves *ingest* on M2 Max" and "does MLX help ingest". Two outcomes:
+### Round 1 (blogs) — led to a wrong "drop MLX" call
+First pass on blogs concluded MLX would hurt ingest (bf16 emulation on M2, slow prefill, broken
+prompt cache) and recommended dropping it. **Round 2 corrected most of this — do not trust round 1.**
 
-1. **MLX (WS4) is DROPPED for ingest on this hardware.** MLX's win is *decode*, not prefill —
-   and for our exact case (M2 Max, 27B, ~16k prefix) MLX would likely make ingest *worse*:
-   - MLX prefill is **slower** than llama.cpp+FlashAttention at long context (measured 49s vs 38s
-     at 8.5k; effective throughput collapses to ~3 tok/s when prefill dominates).
-   - **M2 has no native bf16** → MLX (ships bf16) falls back to software emulation *during prefill*,
-     a penalty M3+/M5 don't have. Hits us directly.
-   - MLX's decode edge **shrinks to ~zero at 27B** (both runtimes hit the bandwidth ceiling).
-   - **Prompt caching is broken/unreliable** in MLX implementations → would kill the WS1 win.
-   - Ollama's own MLX backend gains are **M5-only** (Neural Accelerators), need **>32 GB** (we have
-     exactly 32 → excluded), and target one specific model. N/A to us.
-   - Sources: famstack.dev mlx-vs-gguf, groundy.com mlx-vs-llamacpp, ollama.com/blog/mlx.
+### Round 2 (two rigorous arxiv papers) — the corrected picture
+Read in full: **arxiv 2511.05502** (Persistent Systems — head-to-head of MLX/MLC-LLM/llama.cpp/
+Ollama/PyTorch-MPS on an M2 Ultra) and **arxiv 2512.23029** (Qwen3-30B on consumer hardware).
 
-2. **WS2a "num_batch is flat" is a likely FALSE NEGATIVE.** llama.cpp has TWO batch knobs:
-   - `n_batch` (`-b`, logical buffer cap) ← this is what Ollama's `num_batch` maps to (what I swept).
-   - **`n_ubatch` (`-ub`, physical micro-batch)** ← THIS governs prefill matmul parallelism in the
-     Metal kernels, and is the "dominant lever" the literature cites for 2–3× prefill speedups.
-   I never actually moved `n_ubatch`, and Ollama's **new engine** (`--ollama-engine`) may not expose
-   it at all. So "can ingest go faster?" is **still open**, on a knob I didn't reach.
-   - Caveats keeping expectations honest: (a) `n_ubatch` behaves *unpredictably* per backend/quant —
-     one report saw Qwen3.5-27B peak at `ub=64` and crater at 128 (on AMD ROCm, NOT Metal); (b) at
-     27B the ceiling may simply be memory bandwidth regardless. So this may yield nothing.
-   - Sources: medium @michael.hannecke tuning-llama-cpp, vijay.eu llm-inference-internals,
-     llama.cpp discussion #6328, insights.marvin-42.com (the ub=64 Qwen case).
+1. **MLX (WS4) is UN-DROPPED.** Three round-1 objections were wrong:
+   - *Prompt caching works in MLX* — it has prompt-cache files on disk + a rotating KV cache (paper
+     Table 2). The "broken cache" was **LM Studio's** impl specifically, not MLX. WS1 win can survive.
+   - *No bf16 requirement* — MLX uses mixed **3/4/6/8-bit** quant; a 4-bit MLX avoids bf16 entirely.
+   - *MLX is the FASTEST Apple-native decode*, not at parity: **~230 tok/s (MLX) > ~190 (MLC) >
+     ~150 (llama.cpp) > 20–40 (Ollama) > 7–9 (MPS)** for decode, most stable 11–12 ms/token. Note how
+     badly **Ollama** (what we run) trails — moving off Ollama is itself a likely win.
+   - **BUT** for *ingest/prefill specifically*, MLX is **not** the leader: it does full prefill (no
+     chunked prefill — no Apple runtime has it), TTFT rises with length, and MLC-LLM beats it on TTFT
+     ≤16k. **MLX's win is decode, not ingest.** Both papers: prefill dominates long-context cost.
 
-## NEXT ACTION (2026-05-22) — `n_ubatch` sweep via llama.cpp
+2. **THE BIG LEVER — our model is DENSE; the fast "30B" everyone benchmarks is an MoE.**
+   `qwen3.6:27b` is a **dense 27.8B** → reads all ~16 GB of weights per token → that *is* the 11 tok/s
+   bandwidth wall. The Qwen "30B" in every fast benchmark (Apple's, paper #2) is **Qwen3-30B-A3B**, a
+   **Mixture-of-Experts with ~3B active params/token** → reads ~2 GB/token. On the same M2 Max that
+   could plausibly hit **~40–80 tok/s** decode (vs our 11) — a *bigger* lever than backend choice or
+   spec-decoding. And quality is high: paper #2 reports 30B-A3B (Q6) at **MMLU 83%, AIME 73–90%**,
+   ≈ Claude 3.7 Sonnet. **This is why tomorrow leads with the MoE swap.**
+   - *Open quality question (owner wants this measured):* MoE knowledge ≈ its 30B total, but hard
+     multi-step/agentic reasoning may sit closer to its 3B active size. Must test head-to-head, not
+     assume. History bar: 4B inadequate, 14B mediocre for agentic use.
 
-Goal: settle whether cold ingest can beat Ollama's ~140 tok/s by tuning the *physical* micro-batch.
-Run llama.cpp directly (Ollama's new engine won't let us set `-ub`). Contained benchmark, no prod
-change. **Coordinate first:** llama.cpp + Ollama can't both hold the 24 GB model in 32 GB — unload
-Ollama before benching.
+3. **`n_ubatch` ingest knob (from round 1) is still untested but DEMOTED.** WS2a swept Ollama's
+   `num_batch` = llama.cpp's *logical* `n_batch` (`-b`); the prefill lever is the *physical*
+   `n_ubatch` (`-ub`), which I never moved (Ollama's new engine may not expose it). Worth a llama.cpp
+   `-ub` sweep *only if* cold ingest still matters after the generation work — but WS1 already made
+   ingest a rare cost, and generation is the real pain. Plan retained at the bottom under "Deferred".
 
-**Step 0 — pause & free memory.** Ask owner to pause Hermes. Then either `ssh 10.63.0.32 'ollama
-stop qwen3.6:27b'` (unloads from VRAM, app keeps serving) or quit the app entirely.
+Sources — round 2 (primary): arxiv.org/abs/2511.05502, arxiv.org/abs/2512.23029; also
+github.com/raullenchai/Rapid-MLX (MLX engine WITH working prefix prompt cache, ~0.1–0.3s cached TTFT).
+Round 1 (weaker, kept for the story): famstack.dev mlx-vs-gguf, groundy.com mlx-vs-llamacpp,
+medium @michael.hannecke, vijay.eu, llama.cpp #6328, insights.marvin-42.com.
 
-**Step 1 — get llama.cpp on the Mac.** `ssh 10.63.0.32 'brew install llama.cpp'` (provides
-`llama-bench`, `llama-cli`, `llama-server`). Verify: `llama-bench --help | head`.
+## NEXT ACTION (2026-05-22) — benchmark the MoE swap (speed AND intelligence)
 
-**Step 2 — locate the GGUF.** We can point llama.cpp straight at Ollama's blob (it *is* a GGUF).
-From the runner cmdline the blob is:
-`/Users/dertechie/.ollama/models/blobs/sha256-83c54730a5fea8a0958598c01617c1419c431e93b33bacf980b49a420c798926`
-Confirm tomorrow with `ollama show --modelfile qwen3.6:27b | grep FROM` (path can change on re-pull).
+Goal: find out if **Qwen3 30B-A3B (MoE, ~3B active)** gives a large generation-speed win over the
+dense `qwen3.6:27b` **without an unacceptable intelligence drop**. Owner's explicit requirement:
+**document how much less intelligent the MoE is** vs the dense model — speed alone does not decide it.
+Contained benchmark via the gateway; only swap production if it clearly wins on both axes.
 
-**Step 3 — sweep `-ub` on prompt processing** (no generation, FA on, all layers on GPU):
-```
-GGUF=/Users/dertechie/.ollama/models/blobs/sha256-83c54730a5fea8a0958598c01617c1419c431e93b33bacf980b49a420c798926
-llama-bench -m "$GGUF" -p 8192 -n 0 -fa 1 -ngl 99 -b 2048 -ub 64,128,256,512,1024,2048
-```
-- `-p 8192` = prefill 8192 tokens (bump to 16384 to match the real ~16k agent prefix if time allows).
-- `-n 0` = skip decode; we only care about `pp` (prompt-processing) tok/s here.
-- `-b 2048` must be ≥ the largest `-ub`. Read the `pp` tok/s column per `-ub`.
-- Baseline to beat: **~140 tok/s** (Ollama, ub effectively 512). Also sanity-check `-ub 512` ≈ 140.
+Memory note: a 30B-A3B Q4 (~17–18 GB) and the dense 27B (~16 GB) can't both be resident in 32 GB —
+load one at a time (`ollama stop <other>` between phases).
 
-**Step 4 — decide.**
-- *If some `-ub` clearly wins* (say ≥1.5×): the lever is real. Next question = can Ollama use it?
-  Check `ollama show`/Modelfile params and the new engine for a ubatch/`num_ubatch` knob. If Ollama
-  can't set it, the path becomes serving `private` via **`llama-server`** (OpenAI-compat) behind the
-  gateway — bigger change, and **must verify prompt-cache still works** (the WS1 win) before adopting.
-- *If nothing beats ~140*: confirms 27B prefill is bandwidth-bound here; the WS2a conclusion stands
-  (now properly tested). Close the ingest line; the only remaining lever is WS3.
+**Step 0 — coordinate.** Ask owner to pause Hermes (we'll be loading/unloading models and the cache
+will churn). Use `TERM=xterm-256color ssh 10.63.0.32`.
 
-**Step 5 — restore & record.** Restore Ollama (`open -a Ollama` if quit; `ollama stop` is auto-undone
-on next request). Add an "ingest n_ubatch sweep" block to `mac/bench/results.md`, update this RESUME,
-and correct/confirm the WS2a finding in the journal. Commit.
+**Step 1 — pick & pull the MoE.** Find the right tag: `ssh 10.63.0.32 'ollama list'` and check the
+Ollama library for a Qwen3 30B-A3B (e.g. `qwen3:30b-a3b`, or a `qwen3.6`-family A3B if one exists —
+match our current family/quant Q4_K_M where possible). Pull it: `ollama pull <tag>`. Confirm active
+vs total params with `ollama show <tag>` (want ~3B active / ~30B total, MoE).
 
-### WS3 (kept in reserve, after ingest is settled)
-Speculative decoding with the already-pulled `qwen3:4b` draft for the ~11 tok/s **generation** floor
-(the real day-to-day pain; bandwidth-bound, untouched by anything above). The q8_0 ~2.6 GiB headroom
-would feed it. Persisting q8_0 needs a managed `ollama serve`/LaunchAgent (app ignores the env var).
+**Step 2 — SPEED benchmark (decode is the point).** Reuse `mac/bench/bench_local.py` (raw + e2e)
+against the MoE, same prompts as the dense baseline. Capture: generation tok/s (raw + e2e via
+gateway), cold ingest tok/s, and whether prompt cache behaves (re-send identical prefix → fast).
+Baseline to beat: dense **~11 tok/s** generation. Record both in `mac/bench/results.md`.
+(Run with `think:false` semantics — prod uses `reasoning_effort: none` — else responses look empty.)
+
+**Step 3 — INTELLIGENCE comparison (the required part).** Run a fixed prompt set head-to-head,
+dense vs MoE, by pointing the gateway `private` route at each in turn (edit `mac/litellm-config.yaml`
+model, `restart litellm`). Use **real Hermes-style tasks** per the spec's hand-judged bar, not a
+synthetic suite:
+  - a tool-calling / function-call task (does it pick the right tool + valid args?),
+  - an email-triage / summarize-and-classify task,
+  - a small coding edit (correctness + follows instructions),
+  - 2–3 multi-step reasoning prompts (where MoE's ~3B active compute is most likely to show).
+Judge by hand; **write up the quality delta explicitly** — where the MoE keeps up, where it's
+visibly worse, and a go/no-go recommendation. This is the deliverable the owner asked for.
+
+**Step 4 — decide & record.** New `mac/bench/results.md` section "MoE swap (Qwen3-30B-A3B) vs dense":
+speed table + an honest intelligence-delta writeup. If it wins both → propose swapping the `private`
+model in `mac/litellm-config.yaml` (gate the swap with owner). If speed wins but quality drops too
+much → document the tradeoff and fall back to MLX (Step below) / spec-decoding for the dense model.
+Restore the dense model as the live `private` route before finishing unless owner approves the swap.
+
+### Deferred backend/ingest experiments (after the MoE question is settled)
+- **WS4 — MLX backend (un-dropped).** Stand up `mlx_lm.server` (or mlx-openai-server) with a 4-bit
+  MLX model; head-to-head **decode + prefill + prompt-cache** vs Ollama. Expect MLX to win decode;
+  verify prompt cache survives (WS1). Note: needs a thin OpenAI-compat wrapper for the gateway.
+  Could be combined with the MoE (a 4-bit MLX of 30B-A3B = both levers at once).
+- **WS3 — speculative decoding** with the pulled `qwen3:4b` draft, if we stay on the dense model.
+  q8_0's ~2.6 GiB headroom would feed it; persisting q8_0 needs a managed `ollama serve`/LaunchAgent.
+- **`n_ubatch` ingest sweep (llama.cpp).** Only if cold ingest still matters. Plan: `brew install
+  llama.cpp`; point `llama-bench` at Ollama's GGUF blob
+  (`/Users/dertechie/.ollama/models/blobs/sha256-83c54730a5fea8a0958598c01617c1419c431e93b33bacf980b49a420c798926`,
+  confirm via `ollama show --modelfile qwen3.6:27b | grep FROM`); run
+  `llama-bench -m "$GGUF" -p 8192 -n 0 -fa 1 -ngl 99 -b 2048 -ub 64,128,256,512,1024,2048` and read
+  the `pp` tok/s per `-ub`. Beat Ollama's ~140 tok/s? If a `-ub` wins and Ollama can't set it, the
+  path is serving via `llama-server` (verify prompt cache). Unload Ollama first (memory).
 
 ### Takeover/restore cheat-sheet
 - Reachable serve: `OLLAMA_HOST=0.0.0.0:11434 OLLAMA_KEEP_ALIVE=-1 [OLLAMA_KV_CACHE_TYPE=q8_0] \
@@ -149,4 +181,5 @@ would feed it. Persisting q8_0 needs a managed `ollama serve`/LaunchAgent (app i
 - Use `TERM=xterm-256color ssh 10.63.0.32` (runbook) to avoid a garbled terminal.
 
 ## Task list
-WS2 complete. Tomorrow: the `n_ubatch` llama.cpp sweep above. WS3 not yet broken into tasks.
+WS2 complete. **Tomorrow (2026-05-22): MoE swap benchmark — speed + documented intelligence delta**
+(NEXT ACTION above). Deferred after: MLX (un-dropped), WS3 spec-decoding, `n_ubatch` ingest sweep.
