@@ -17,3 +17,6 @@ litellm.secrets.yaml
 # Python
 __pycache__/
 .pytest_cache/
+
+# Local virtualenvs
+.venv/
