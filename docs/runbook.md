@@ -52,6 +52,13 @@ Dashboard: `http://10.63.0.32:4000/ui` (login `UI_USERNAME` / `UI_PASSWORD`).
 - Pin email triage to `private` so sensitive inbox content stays on-device even though the brain is cloud.
 - Config backups: `~/.hermes/config.yaml.bak-*`.
 
+## Prefix-cache hygiene (keep `private` fast)
+
+- The local model has **one KV slot** (`OLLAMA_NUM_PARALLEL=1`). Any call that lands on it with a different prompt **evicts** the cached agent prefix, forcing the next agent turn to re-ingest the full ~16k context cold (~2 min). The big lever for `private` speed is keeping that slot holding the agent's stable prefix.
+- Therefore Hermes' text **auxiliary tasks** are pinned to the cloud `main` route (not the session model) in `~/.hermes/config.yaml` under `auxiliary:` — `title_generation`, `compression`, `triage_specifier`, `profile_describer`, `curator` each set `provider: custom`, `model: main`, `base_url: <gateway>/v1`, `api_key: <master key>`. **Do not let these default back to `provider: auto`** on the private route — title generation alone, firing once per conversation, drops every turn back to ~2 min. (Trade-off: titles/summaries of `private` chats touch the cloud; acceptable while GDPR is deferred. To keep them on-device, point aux at a small local model like `qwen3:4b` instead.)
+- `keep_alive: -1` (gateway model block) keeps the 18k prefix resident across turns/sessions so subsequent turns stay cache-warm (~8–16 s).
+- **Diagnosing cache busts:** capture real requests with a manual logging server — the macOS Ollama app ignores `launchctl setenv`, so quit it and run `OLLAMA_DEBUG_LOG_REQUESTS=true OLLAMA_KEEP_ALIVE=-1 /Applications/Ollama.app/Contents/Resources/ollama serve`. Bodies land in a temp `ollama-request-logs-*` dir as JSON; diff consecutive agent turns' `messages[0]` and watch for small auxiliary prompts interleaved between them. Restore the app with `open -a Ollama` when done.
+
 ## Cost control
 
 - Cloud models: `main` = GPT-5-mini (`openrouter/openai/gpt-5-mini`, the default brain), `deep` = GPT-5 (`openrouter/openai/gpt-5`), `deep-fallback` = Gemini 3.1 Pro Preview (used only if `deep` errors).
