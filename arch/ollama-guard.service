@@ -1,0 +1,14 @@
+[Unit]
+Description=Restrict Ollama :11434 to localhost + Mac gateway (nftables)
+Documentation=https://github.com/DerTechie/AISetup
+# Load after the network is up so the rule is in place before Ollama is reachable.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nft -f /etc/nftables-ollama-guard.nft
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

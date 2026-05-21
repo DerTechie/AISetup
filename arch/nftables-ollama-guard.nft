@@ -1,0 +1,20 @@
+#!/usr/bin/nft -f
+# Restrict Ollama (:11434, bound to 0.0.0.0 so the Mac gateway can reach it)
+# to localhost and the Mac LiteLLM gateway only.
+#
+# Self-contained `inet ollama_guard` table: it does NOT flush the ruleset or
+# touch libvirt's dynamic tables. This is deliberately surgical — the Arch box
+# runs no general firewall (stock Arch ships none enabled), and we don't impose
+# one here; we only fence off the one LAN-exposed service we added.
+#
+# Idempotent: the add+delete pair resets only this table on reload.
+
+add table inet ollama_guard
+delete table inet ollama_guard
+table inet ollama_guard {
+  chain input {
+    type filter hook input priority filter; policy accept;
+    tcp dport 11434 ip saddr { 127.0.0.1, 10.63.0.32 } accept comment "Ollama: localhost + Mac gateway"
+    tcp dport 11434 drop comment "Ollama: block all other LAN sources"
+  }
+}
