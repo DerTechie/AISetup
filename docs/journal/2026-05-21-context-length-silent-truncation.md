@@ -56,8 +56,27 @@ Two more constraints fell out of reading the Hermes source/docs:
   `triage_specifier` local — they're short single-shot tasks, not whole-conversation summaries,
   so the rule doesn't bite.
 
+## Coverage caveat (verified live)
+
+The override only fires on call sites that thread `custom_providers` into
+`get_model_context_length` (resolution step 0b). The **budgeting** paths do — startup
+compressor init (`agent_init.py` resolves the per-model override and feeds it in),
+`/model` switch, and the gateway compaction-threshold recompute (`run.py:8113` reads the
+`models:` map directly). Confirmed empirically: once a request starts, the progress bar
+shows the correct window (65536 on `private`), i.e. the compaction budget is right.
+
+A few **secondary/display** paths don't thread it and have no top-level `model.context_length`
+to fall back on, so they still log `… defaulting to 256,000 (probe-down)` — notably the
+`@`-mention budgeter (`run.py:7723`) and the `/model`-switch context display
+(`model_switch.py`). Symptom: the context shown at the *moment of switching models* is briefly
+wrong, then self-corrects on the next request. Cosmetic — left as-is rather than patching
+installed Hermes source. (A clean fix would thread `custom_providers` into those two sites;
+upstreamable.)
+
 ## Lesson
 
 A "harmless" default-value warning was a proxy for real, invisible data loss. The empirical
 check (load it, read `ollama ps`) also *saved* work — the feared VRAM ceiling wasn't real, so
-two mitigations got dropped instead of built.
+two mitigations got dropped instead of built. And the inverse: a scary-looking residual
+"defaulting to 256,000" log turned out to be cosmetic once the *budgeting* path was traced and
+the live progress bar confirmed correct — read the path, don't fear the log line.
