@@ -1,0 +1,27 @@
+{
+  "status": 200,
+  "data": [
+    {
+      "id": "o3-mini",
+      "name": "o3-mini",
+      "slug": "o3-mini",
+      "evaluations": {
+        "artificial_analysis_intelligence_index": 62.9,
+        "artificial_analysis_coding_index": 55.8,
+        "artificial_analysis_math_index": 87.2,
+        "mmlu_pro": 79.0,
+        "gpqa": 74.0,
+        "hle": null
+      }
+    },
+    {
+      "id": "tiny-model",
+      "name": "Tiny Model",
+      "slug": "tiny-model",
+      "evaluations": {
+        "artificial_analysis_intelligence_index": 20.1,
+        "artificial_analysis_coding_index": null
+      }
+    }
+  ]
+}
