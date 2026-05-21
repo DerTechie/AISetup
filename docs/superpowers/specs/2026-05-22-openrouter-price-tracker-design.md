@@ -16,7 +16,7 @@ and must be joined to prices by model id.
 
 - A local, committed dataset of **current OpenRouter prices** for all models, refreshed on demand.
 - **History via git** — the working file stays small; `git log -p` is the time-machine.
-- A **joinable quality dataset** from external benchmark sources (Artificial Analysis, LMArena).
+- A **joinable quality dataset** from Artificial Analysis (LMArena deferred — see Future work).
 - A derived **price-vs-quality** view — the artifact that answers "cheapest equal-quality cloud".
 - Zero runtime dependencies (Python stdlib only); faithful to source units; deterministic output.
 
@@ -39,9 +39,9 @@ and must be joined to prices by model id.
 - **Artificial Analysis**: free public API `https://artificialanalysis.ai/api/v2/`, endpoint
   `data/llms/models`, header `x-api-key`, free tier 1000 req/day, **attribution required**.
   Returns `artificial_analysis_intelligence_index`, coding/math indices, MMLU-Pro, GPQA, prices, speed.
-- **LMArena**: public HF dataset `lmarena-ai/leaderboard-dataset` (latest/full splits). Accessed via
-  the HF **datasets-server REST** endpoint (`https://datasets-server.huggingface.co/rows?...`) to
-  avoid the heavy `datasets` library; fallback source `github.com/fboulnois/llm-leaderboard-csv`.
+- **LMArena** (deferred to Future work): public HF dataset `lmarena-ai/leaderboard-dataset`,
+  accessible via the HF datasets-server REST endpoint — kept out of this iteration to avoid its
+  format fragility.
 
 ## Architecture
 
@@ -53,18 +53,16 @@ pricing/
   sources/
     openrouter.py           # parse_models(json) -> rows   (pure)  + fetch()  (thin HTTP)
     artificialanalysis.py   # parse_aa(json) -> rows        (pure)  + fetch()  (thin HTTP, needs key)
-    lmarena.py              # parse_lmarena(json) -> rows    (pure)  + fetch()  (thin HTTP)
   join.py                   # build_price_vs_quality(prices, scores, idmap) -> rows  (pure)
   csvio.py                  # deterministic write (sort + atomic temp-rename), number formatting
   data/
     openrouter-prices.csv         # full current snapshot, committed
     scores-artificialanalysis.csv # long format, committed
-    scores-lmarena.csv            # long format, committed
     model-id-map.csv              # curated: openrouter_id -> source names
     price-vs-quality.csv          # derived join, committed
   tests/
     fixtures/                     # saved JSON samples for each source
-    test_openrouter.py test_artificialanalysis.py test_lmarena.py test_join.py
+    test_openrouter.py test_artificialanalysis.py test_join.py
   README.md
 ```
 
@@ -80,10 +78,9 @@ place the three meet.
 ## Data flow
 
 ```
-OpenRouter /models ─ fetch ─> parse_models ─> openrouter-prices.csv ─┐
-Artificial Analysis ─ fetch ─> parse_aa ────> scores-artificialanalysis.csv ─┤
-LMArena (HF) ─ fetch ─────────> parse_lmarena > scores-lmarena.csv ─┤─ join ─> price-vs-quality.csv
-                                              model-id-map.csv ──────┘
+OpenRouter /models ─ fetch ─> parse_models ─> openrouter-prices.csv ────────┐
+Artificial Analysis ─ fetch ─> parse_aa ────> scores-artificialanalysis.csv ─┤─ join ─> price-vs-quality.csv
+                                              model-id-map.csv ──────────────┘
 ```
 
 ## CSV schemas
@@ -111,13 +108,13 @@ image_usd_per_k, web_search_usd_per_1k, request_usd
 fetched_date, source_model_name, benchmark, score
 ```
 
-Long format absorbs new benchmarks without schema changes and unifies AA's many indices with
-LMArena's per-arena scores.
+Long format absorbs new benchmarks without schema changes (AA's many indices today; a second
+source's metrics later) and keeps the per-source filename as the provenance marker.
 
 **`model-id-map.csv`** — hand-curated, sorted by `openrouter_id`:
 
 ```
-openrouter_id, aa_model_name, lmarena_model_name
+openrouter_id, aa_model_name
 ```
 
 Blank cells mean "no known counterpart". `suggest-map` proposes additions via name fuzzy-match
@@ -127,7 +124,7 @@ Blank cells mean "no known counterpart". `suggest-map` proposes additions via na
 
 ```
 openrouter_id, name, prompt_usd_per_mtok, completion_usd_per_mtok,
-blended_usd_per_mtok, aa_intelligence_index, lmarena_text_score
+blended_usd_per_mtok, aa_intelligence_index
 ```
 
 `blended_usd_per_mtok = (3*prompt + 1*completion) / 4` (3:1 input:output, documented in README;
@@ -156,7 +153,7 @@ missing map entries, and blended-price math. No network in tests.
 ## Phasing (build order, all in this iteration)
 
 1. `csvio` + `openrouter` source + CLI `fetch-prices` → `openrouter-prices.csv`. Verify against live data, commit.
-2. `artificialanalysis` + `lmarena` sources + CLI `fetch-scores` → score CSVs. Verify, commit.
+2. `artificialanalysis` source + CLI `fetch-scores` → `scores-artificialanalysis.csv`. Verify, commit.
 3. `suggest-map` + curate `model-id-map.csv`.
 4. `join` + CLI `join`/`all` → `price-vs-quality.csv`. Verify, commit.
 
@@ -167,5 +164,12 @@ USD-as-truth, separate-sources-joined-by-id).
 ## Open risks
 
 - **id-map upkeep** is manual and the main ongoing cost; fuzzy-match only suggests.
-- **LMArena access shape** (HF datasets-server response) is the least-certain source; the parser is
-  isolated and fixture-tested so a format change is contained and loud.
+- **AA model naming** vs OpenRouter ids needs the id-map; coverage will be partial at first and grow.
+
+## Future work
+
+- **LMArena** as a second score source (HF dataset `lmarena-ai/leaderboard-dataset` via the
+  datasets-server REST endpoint). Deferred for format fragility; the source-module + long-format
+  schema + per-source file layout already accommodate it with no schema change — add
+  `sources/lmarena.py`, `scores-lmarena.csv`, and an `lmarena_model_name` map column.
+- Automated refresh (cron) + EUR conversion in analysis.
