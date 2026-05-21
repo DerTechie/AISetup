@@ -22,7 +22,9 @@ turn. Fix: routed text auxiliary tasks (`title_generation`, `compression`, `tria
 Measured on real Hermes `private` turns (wall-clock per /api/chat):
 | Metric | Before | After |
 |---|---|---|
-| Subsequent agent turn (turn 2) | ~133 s (2m13s) | **15.9 s** (~8.4× faster) |
-| First turn of a new session | ~145 s | **8.3 s** (18k prefix survived from prior session) |
+| Subsequent agent turn (turn 2, prefix cached) | ~133 s (2m13s) | **15.9 s** (~8.4× faster) |
+| First turn when prefix already resident | — | **8.3 s** (prefix survived from prior session) |
 | Title-gen call landing on local model | yes (evicts cache) | **no** (now cloud) |
-| One-time cold ingest after model (re)load | ~128 s | ~128 s (unchanged — WS2 target) |
+| First agent turn after a cold model (re)load | ~2 min | **~1m24s (84 s) measured** — unchanged by WS1, this is the WS2 target |
+
+(Baseline "~128s to first token" was a `16.4k ÷ 128 tok/s` estimate; the measured real-world cold first turn is ~1m24s.)

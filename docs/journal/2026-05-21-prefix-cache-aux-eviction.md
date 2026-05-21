@@ -64,8 +64,9 @@ Real `private` turns measured before vs after:
 - First turn of a new session: **8.3 s** — the 18k prefix now survives across sessions because
   nothing evicts it.
 
-The one-time cold ingest after a model reload is still ~128 s; that's the next target (WS2:
-`num_batch` and KV-cache tuning). But the day-to-day "every turn is 2 minutes" pain is gone.
+The one-time cold ingest after a model reload is still slow — measured at ~1m24s (84 s) for
+the first agent turn; that's the next target (WS2: `num_batch` and KV-cache tuning). But the
+day-to-day "every turn is 2 minutes" pain is gone.
 
 ## Lesson
 
