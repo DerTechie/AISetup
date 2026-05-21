@@ -25,6 +25,34 @@ Measured on real Hermes `private` turns (wall-clock per /api/chat):
 | Subsequent agent turn (turn 2, prefix cached) | ~133 s (2m13s) | **15.9 s** (~8.4× faster) |
 | First turn when prefix already resident | — | **8.3 s** (prefix survived from prior session) |
 | Title-gen call landing on local model | yes (evicts cache) | **no** (now cloud) |
-| First agent turn after a cold model (re)load | ~2 min | **~1m24s (84 s) measured** — unchanged by WS1, this is the WS2 target |
+| First agent turn after a fully cold slot | ~2 min | **~128 s** (raw cold ingest, 16.4k ÷ ~128 tok/s) — unchanged by WS1, this is the WS2 target |
 
-(Baseline "~128s to first token" was a `16.4k ÷ 128 tok/s` estimate; the measured real-world cold first turn is ~1m24s.)
+**What WS1 actually changed (clarification):** it did *not* speed up ingest. The local model has a single, sequential KV slot. The interleaved `title_generation` call was forced to run between agent turns and, being a different prompt, evicted the cached agent prefix — so every turn paid the full ~128 s cold re-ingest again. Removing aux from the slot eliminates that eviction, so the prefix stays warm and subsequent turns are ~16 s. (Observed first-turn times below 128 s, e.g. ~84 s or 8.3 s, are cases where part/all of the prefix was still resident.) The genuine cold ingest of a fully empty slot remains ~128 s — that is the only thing WS2 can move.
+
+## After WS2 (cold-ingest & memory tuning) — 2026-05-21
+
+**Verdict: no speedup. WS2's only deliverable is freeing ~2.6 GiB VRAM (q8_0 KV), which matters only as headroom for WS3.** Both ingest and generation are memory-bandwidth bound on the M2 Max; neither lever in WS2 moves them.
+
+Measured by taking over the Mac Ollama (`ollama serve` via the bundled binary, `OLLAMA_HOST=0.0.0.0`, `keep_alive=-1`), since the macOS app ignores `launchctl setenv` for `num_batch`/`OLLAMA_KV_CACHE_TYPE`. Cold ingest = unique ~13.6k-token prompt forcing a cache miss; generation = `think:false` (production sets `reasoning_effort: none`). App restored afterward — steady state is back on f16 KV / loopback.
+
+### WS2a — num_batch sweep (per-request `options.num_batch`, cold ingest)
+| num_batch | cold ingest |
+|---|---|
+| 512 (default) | 138 tok/s |
+| 1024 | 140 tok/s |
+| 2048 | 140 tok/s |
+
+Flat → `num_batch` is **not** a lever; ingest is bandwidth-bound, not batch-throughput-bound. Keep the default 512.
+
+### WS2b — KV cache quant (`OLLAMA_KV_CACHE_TYPE=q8_0`, flash-attn on)
+| Metric | f16 (baseline) | q8_0 |
+|---|---|---|
+| Cold ingest | ~140 tok/s | ~131 tok/s (~6% slower, within noise) |
+| Generation (think off) | 11.2 tok/s | 11.1 tok/s (unchanged) |
+| KV cache size (32k ctx) | 5.7 GiB | **4.7 GiB** |
+| Total resident VRAM | 24.4 GiB | **21.8 GiB** (~2.6 GiB freed) |
+| Quality spot-check | — | coherent, no visible degradation |
+
+q8_0 costs nothing in speed and frees ~2.6 GiB — but that headroom only pays off if we add a draft model in WS3. **Not persisted** (would require running Ollama as a managed `ollama serve`/LaunchAgent instead of the macOS app, since the app ignores the env var). Gate persistence on the WS3 go/no-go.
+
+**Bottom line:** the real bottleneck is generation at ~11 tok/s — untouched by WS2. The next lever is WS3 (speculative decoding with the pulled `qwen3:4b` draft, needs the q8_0 headroom) / WS4 (MLX backend).

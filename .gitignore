@@ -13,3 +13,7 @@ litellm.secrets.yaml
 # OS / editor noise
 .DS_Store
 *.swp
+
+# Python
+__pycache__/
+.pytest_cache/

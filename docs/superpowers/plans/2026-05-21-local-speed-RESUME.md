@@ -28,14 +28,17 @@ for coded tasks, direct execution for live ops.
   - **Result:** subsequent local turn **133s → 15.9s (~8.4×)**; first turn when prefix resident 8.3s.
   - Config backup: `~/.hermes/config.yaml.bak-20260521-034951`.
 
-### IN PROGRESS — WS2 (cold-ingest tuning)
-The remaining pain is the **cold first agent turn ≈ 1m24s (~84s)** (after a model reload; the warm
-case is fixed). Goal: speed cold ingest via `num_batch` and KV-cache quantization.
-- **WS2a — num_batch sweep:** was running `/tmp/ws2_batch.py` (sweeps `num_batch` 512/1024/2048
-  via per-request `options`, each with a unique ~16k prompt to force cold ingest, reports prompt
-  tok/s). **It FAILED: `ConnectionRefused` on `10.63.0.32:11434`** — the Mac Ollama API stopped
-  accepting connections (it was up right after I restored the app, then refused minutes later).
-- **WS2b — KV cache quant (`OLLAMA_KV_CACHE_TYPE=q8_0`):** not started. Needs server-level env.
+### DONE — WS2 (cold-ingest & memory tuning): COMPLETE, negative result
+Measured both knobs by taking over the Mac Ollama (`OLLAMA_HOST=0.0.0.0` serve). **No speedup.**
+Full numbers in `mac/bench/results.md` → "After WS2"; story in
+`docs/journal/2026-05-21-ws2-cold-ingest-memory-tuning.md`.
+- **WS2a — num_batch sweep:** 512/1024/2048 → 138/140/140 tok/s. Flat; not a lever. (The earlier
+  `ConnectionRefused` was NOT an outage — `open -a Ollama` binds **loopback-only**, so the
+  workstation couldn't reach `:11434`. Taking over with `OLLAMA_HOST=0.0.0.0` fixed reachability.)
+- **WS2b — KV quant `q8_0`:** ingest ~131 tok/s (≈ baseline), generation 11.1 tok/s (unchanged),
+  KV 5.7→4.7 GiB, total VRAM 24.4→21.8 GiB (~2.6 GiB freed), quality coherent. **Not persisted** —
+  its only value is headroom for WS3, and persisting needs a managed `ollama serve` (the app
+  ignores the env var). App restored; production back on f16/loopback and verified healthy.
 
 ## Key constraints / gotchas learned
 - **The macOS Ollama app IGNORES `launchctl setenv`** (it curates its own env). So
@@ -59,25 +62,26 @@ case is fixed). Goal: speed cold ingest via `num_batch` and KV-cache quantizatio
 - Gateway: `http://10.63.0.32:4000/v1`; key in `~/.hermes/config.yaml` `model.api_key`.
   Health: `curl http://10.63.0.32:4000/health/liveliness`.
 
-## NEXT ACTION
-1. **Diagnose the Mac Ollama outage.** Run (this is the command that was interrupted):
-   - check listener: `ssh 10.63.0.32 'lsof -nP -iTCP:11434 -sTCP:LISTEN'`
-   - check processes: `ssh 10.63.0.32 'pgrep -fl ollama; pgrep -fl Ollama.app'`
-   - `curl -s -m5 http://10.63.0.32:11434/api/ps`
-   - If down: `ssh 10.63.0.32 'open -a Ollama'` (wait ~10s, model reloads cold), re-verify.
-   - Use `TERM=xterm-256color ssh 10.63.0.32` per runbook.
-2. Once Ollama is back: re-run the num_batch sweep: `python3 /tmp/ws2_batch.py` (recreate it if the
-   /tmp file is gone — see WS2a description above; it's simple). Coordinate: ask the user to pause
-   Hermes during the sweep (heavy ~16k requests evict the cache).
-3. Then WS2b: take over with a manual serve setting `OLLAMA_KV_CACHE_TYPE=q8_0`, measure cold
-   ingest + KV size (expect 5.7GiB→~3GiB) + spot-check quality; restore the app after.
-4. Record an "After WS2" row in `mac/bench/results.md`, persist the winning `num_batch` (via the
-   `private` model `options` in `mac/litellm-config.yaml`, `restart litellm`) and KV type, commit,
-   update runbook.
-5. After WS2, the next-biggest lever is **generation speed** (WS3 speculative decoding with the
-   already-pulled `qwen3:4b` / WS4 MLX backend). Gate with the user.
+## NEXT ACTION — GATE WS3 WITH THE OWNER
+WS1 and WS2 are done. The warm-turn pain is fixed (~16 s); the ~11 tok/s **generation** floor and
+the one-time ~128 s cold ingest are unmoved and are bandwidth-bound — no server knob touches them.
+The remaining real levers both need an owner decision:
+1. **WS3 — speculative decoding** with the already-pulled `qwen3:4b` as a draft model. This is the
+   most promising generation-speed lever and is what the q8_0 ~2.6 GiB headroom would feed. If we
+   commit to WS3, also persist `q8_0` (requires switching the Mac from the Ollama *app* to a
+   managed `ollama serve` / LaunchAgent, since the app ignores `OLLAMA_KV_CACHE_TYPE`).
+2. **WS4 — MLX backend** evaluation (`mlx-lm` server) as an alternative path that can beat the
+   GGUF/llama.cpp generation speed. Must preserve OpenAI-compat API + prompt-cache (the WS1 win).
+3. **WS5 — model bake-off** only if still too slow, with a hand-judged quality gate on real tasks.
+Pick the lever (likely WS3 first) with the owner before resuming.
 
-## Task list (TaskList ids)
-- #14 WS2a num_batch sweep (in progress — blocked on the Ollama outage)
-- #15 WS2b KV cache quant test
-- #16 WS2 record results + persist config
+### Takeover/restore cheat-sheet (for WS3)
+- Reachable serve: `OLLAMA_HOST=0.0.0.0:11434 OLLAMA_KEEP_ALIVE=-1 [OLLAMA_KV_CACHE_TYPE=q8_0] \
+  nohup /Applications/Ollama.app/Contents/Resources/ollama serve >/tmp/oll.log 2>&1 &` after
+  `osascript -e 'quit app "Ollama"'` + `pkill -f "Ollama.app/Contents/MacOS/Ollama"`.
+- Restore steady state: `pkill -f "ollama serve"; open -a Ollama` (binds loopback, f16 KV).
+- Quality spot-check must pass `think:false` (prod runs `reasoning_effort: none`), else `response`
+  is empty (all tokens go to the thinking field).
+
+## Task list
+WS2 tasks complete. WS3 not yet broken into tasks — create them after the owner picks the lever.
