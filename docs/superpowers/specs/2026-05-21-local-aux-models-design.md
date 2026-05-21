@@ -150,7 +150,9 @@ Closes comfortably. **Autocomplete note (future, out of scope):** `Qwen2.5-Coder
 - [x] `aux-local` calls register €0 (`x-litellm-response-cost-original: 0.0`).
 - [x] `curator` path verified: dry-run runs clean (`llm: skipped`, no skills yet) and its backend `private` route (Mac 27B) answers through the gateway (~6 s). Full agentic loop within 1800 s is only measurable once agent-created skills exist.
 - [x] Firewall persistence resolved (see below).
-- [ ] A real Hermes turn titles via `aux-local` (live; takes effect on next Hermes restart).
+- [x] A real Hermes turn titled via `aux-local` in live use: `agent.auxiliary_client: Auxiliary title_generation: using custom (aux-local)` at 14:10:14 local = the 103-token, €0 gateway spend-log entry at 12:10:14Z. Full loop (Hermes → gateway → Arch 4B) confirmed on-device and free.
+
+*(Minor follow-up: Hermes logs "Could not detect context length for model 'aux-local' … defaulting to 256,000" — harmless for tiny aux prompts; optionally set `model.context_length` for `aux-local` in `~/.hermes/config.yaml` to silence it.)*
 
 **Firewall persistence — RESOLVED.** The box runs no general firewall (stock Arch ships none enabled), so rather than enable the default-deny skeleton we persisted only the surgical `ollama_guard` table via a boot-time oneshot unit. Captured in [`arch/`](../../../arch/): `ollama-lan.conf` (LAN bind), `nftables-ollama-guard.nft` (the fence), `ollama-guard.service` (`enabled`, loads it after the network is up without flushing libvirt's tables). Verified `enabled + active`. Debugging story (an `iptables`-nft-shim trap silently dropped `:11434`) in [`docs/journal/2026-05-21-firewall-iptables-nft-shim-trap.md`](../../journal/2026-05-21-firewall-iptables-nft-shim-trap.md).
 
