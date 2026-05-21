@@ -1,7 +1,9 @@
 # RESUME — context-length detection fix + Mac 64k bump + compression re-route
 
 - **Date:** 2026-05-21
-- **Status:** Approved, not yet started. Pick this up in a fresh session.
+- **Status:** ✅ DONE & verified (2026-05-21, commit `bb09389`). All four moves shipped — see
+  spec §10 and journal `2026-05-21-context-length-silent-truncation.md`. VRAM check passed at
+  f16 (26 GB/100% GPU), so the q8_0 KV fallback was *not* needed. Kept for the build story.
 - **Owner:** DerTechie
 
 ## Where we are
