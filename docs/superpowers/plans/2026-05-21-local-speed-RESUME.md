@@ -1,6 +1,10 @@
-# RESUME — Local-speed optimization (state as of 2026-05-21 ~04:00)
+# RESUME — Local-speed optimization (state as of 2026-05-21 ~05:30)
 
 Pick up here after a context clear. Read this top-to-bottom, then continue at **"NEXT ACTION"**.
+
+> **Tomorrow's job (2026-05-22):** run the **`n_ubatch` sweep via llama.cpp** described under
+> NEXT ACTION. Everything needed is in this file. Owner already decided: do the llama.cpp test,
+> **drop MLX (WS4)**, keep WS3 in reserve.
 
 ## Where we are
 
@@ -62,26 +66,87 @@ Full numbers in `mac/bench/results.md` → "After WS2"; story in
 - Gateway: `http://10.63.0.32:4000/v1`; key in `~/.hermes/config.yaml` `model.api_key`.
   Health: `curl http://10.63.0.32:4000/health/liveliness`.
 
-## NEXT ACTION — GATE WS3 WITH THE OWNER
-WS1 and WS2 are done. The warm-turn pain is fixed (~16 s); the ~11 tok/s **generation** floor and
-the one-time ~128 s cold ingest are unmoved and are bandwidth-bound — no server knob touches them.
-The remaining real levers both need an owner decision:
-1. **WS3 — speculative decoding** with the already-pulled `qwen3:4b` as a draft model. This is the
-   most promising generation-speed lever and is what the q8_0 ~2.6 GiB headroom would feed. If we
-   commit to WS3, also persist `q8_0` (requires switching the Mac from the Ollama *app* to a
-   managed `ollama serve` / LaunchAgent, since the app ignores `OLLAMA_KV_CACHE_TYPE`).
-2. **WS4 — MLX backend** evaluation (`mlx-lm` server) as an alternative path that can beat the
-   GGUF/llama.cpp generation speed. Must preserve OpenAI-compat API + prompt-cache (the WS1 win).
-3. **WS5 — model bake-off** only if still too slow, with a hand-judged quality gate on real tasks.
-Pick the lever (likely WS3 first) with the owner before resuming.
+## Web research (2026-05-21) — what it changed
 
-### Takeover/restore cheat-sheet (for WS3)
+Did a web sweep on "what improves *ingest* on M2 Max" and "does MLX help ingest". Two outcomes:
+
+1. **MLX (WS4) is DROPPED for ingest on this hardware.** MLX's win is *decode*, not prefill —
+   and for our exact case (M2 Max, 27B, ~16k prefix) MLX would likely make ingest *worse*:
+   - MLX prefill is **slower** than llama.cpp+FlashAttention at long context (measured 49s vs 38s
+     at 8.5k; effective throughput collapses to ~3 tok/s when prefill dominates).
+   - **M2 has no native bf16** → MLX (ships bf16) falls back to software emulation *during prefill*,
+     a penalty M3+/M5 don't have. Hits us directly.
+   - MLX's decode edge **shrinks to ~zero at 27B** (both runtimes hit the bandwidth ceiling).
+   - **Prompt caching is broken/unreliable** in MLX implementations → would kill the WS1 win.
+   - Ollama's own MLX backend gains are **M5-only** (Neural Accelerators), need **>32 GB** (we have
+     exactly 32 → excluded), and target one specific model. N/A to us.
+   - Sources: famstack.dev mlx-vs-gguf, groundy.com mlx-vs-llamacpp, ollama.com/blog/mlx.
+
+2. **WS2a "num_batch is flat" is a likely FALSE NEGATIVE.** llama.cpp has TWO batch knobs:
+   - `n_batch` (`-b`, logical buffer cap) ← this is what Ollama's `num_batch` maps to (what I swept).
+   - **`n_ubatch` (`-ub`, physical micro-batch)** ← THIS governs prefill matmul parallelism in the
+     Metal kernels, and is the "dominant lever" the literature cites for 2–3× prefill speedups.
+   I never actually moved `n_ubatch`, and Ollama's **new engine** (`--ollama-engine`) may not expose
+   it at all. So "can ingest go faster?" is **still open**, on a knob I didn't reach.
+   - Caveats keeping expectations honest: (a) `n_ubatch` behaves *unpredictably* per backend/quant —
+     one report saw Qwen3.5-27B peak at `ub=64` and crater at 128 (on AMD ROCm, NOT Metal); (b) at
+     27B the ceiling may simply be memory bandwidth regardless. So this may yield nothing.
+   - Sources: medium @michael.hannecke tuning-llama-cpp, vijay.eu llm-inference-internals,
+     llama.cpp discussion #6328, insights.marvin-42.com (the ub=64 Qwen case).
+
+## NEXT ACTION (2026-05-22) — `n_ubatch` sweep via llama.cpp
+
+Goal: settle whether cold ingest can beat Ollama's ~140 tok/s by tuning the *physical* micro-batch.
+Run llama.cpp directly (Ollama's new engine won't let us set `-ub`). Contained benchmark, no prod
+change. **Coordinate first:** llama.cpp + Ollama can't both hold the 24 GB model in 32 GB — unload
+Ollama before benching.
+
+**Step 0 — pause & free memory.** Ask owner to pause Hermes. Then either `ssh 10.63.0.32 'ollama
+stop qwen3.6:27b'` (unloads from VRAM, app keeps serving) or quit the app entirely.
+
+**Step 1 — get llama.cpp on the Mac.** `ssh 10.63.0.32 'brew install llama.cpp'` (provides
+`llama-bench`, `llama-cli`, `llama-server`). Verify: `llama-bench --help | head`.
+
+**Step 2 — locate the GGUF.** We can point llama.cpp straight at Ollama's blob (it *is* a GGUF).
+From the runner cmdline the blob is:
+`/Users/dertechie/.ollama/models/blobs/sha256-83c54730a5fea8a0958598c01617c1419c431e93b33bacf980b49a420c798926`
+Confirm tomorrow with `ollama show --modelfile qwen3.6:27b | grep FROM` (path can change on re-pull).
+
+**Step 3 — sweep `-ub` on prompt processing** (no generation, FA on, all layers on GPU):
+```
+GGUF=/Users/dertechie/.ollama/models/blobs/sha256-83c54730a5fea8a0958598c01617c1419c431e93b33bacf980b49a420c798926
+llama-bench -m "$GGUF" -p 8192 -n 0 -fa 1 -ngl 99 -b 2048 -ub 64,128,256,512,1024,2048
+```
+- `-p 8192` = prefill 8192 tokens (bump to 16384 to match the real ~16k agent prefix if time allows).
+- `-n 0` = skip decode; we only care about `pp` (prompt-processing) tok/s here.
+- `-b 2048` must be ≥ the largest `-ub`. Read the `pp` tok/s column per `-ub`.
+- Baseline to beat: **~140 tok/s** (Ollama, ub effectively 512). Also sanity-check `-ub 512` ≈ 140.
+
+**Step 4 — decide.**
+- *If some `-ub` clearly wins* (say ≥1.5×): the lever is real. Next question = can Ollama use it?
+  Check `ollama show`/Modelfile params and the new engine for a ubatch/`num_ubatch` knob. If Ollama
+  can't set it, the path becomes serving `private` via **`llama-server`** (OpenAI-compat) behind the
+  gateway — bigger change, and **must verify prompt-cache still works** (the WS1 win) before adopting.
+- *If nothing beats ~140*: confirms 27B prefill is bandwidth-bound here; the WS2a conclusion stands
+  (now properly tested). Close the ingest line; the only remaining lever is WS3.
+
+**Step 5 — restore & record.** Restore Ollama (`open -a Ollama` if quit; `ollama stop` is auto-undone
+on next request). Add an "ingest n_ubatch sweep" block to `mac/bench/results.md`, update this RESUME,
+and correct/confirm the WS2a finding in the journal. Commit.
+
+### WS3 (kept in reserve, after ingest is settled)
+Speculative decoding with the already-pulled `qwen3:4b` draft for the ~11 tok/s **generation** floor
+(the real day-to-day pain; bandwidth-bound, untouched by anything above). The q8_0 ~2.6 GiB headroom
+would feed it. Persisting q8_0 needs a managed `ollama serve`/LaunchAgent (app ignores the env var).
+
+### Takeover/restore cheat-sheet
 - Reachable serve: `OLLAMA_HOST=0.0.0.0:11434 OLLAMA_KEEP_ALIVE=-1 [OLLAMA_KV_CACHE_TYPE=q8_0] \
   nohup /Applications/Ollama.app/Contents/Resources/ollama serve >/tmp/oll.log 2>&1 &` after
   `osascript -e 'quit app "Ollama"'` + `pkill -f "Ollama.app/Contents/MacOS/Ollama"`.
 - Restore steady state: `pkill -f "ollama serve"; open -a Ollama` (binds loopback, f16 KV).
 - Quality spot-check must pass `think:false` (prod runs `reasoning_effort: none`), else `response`
   is empty (all tokens go to the thinking field).
+- Use `TERM=xterm-256color ssh 10.63.0.32` (runbook) to avoid a garbled terminal.
 
 ## Task list
-WS2 tasks complete. WS3 not yet broken into tasks — create them after the owner picks the lever.
+WS2 complete. Tomorrow: the `n_ubatch` llama.cpp sweep above. WS3 not yet broken into tasks.

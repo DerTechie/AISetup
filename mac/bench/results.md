@@ -42,7 +42,12 @@ Measured by taking over the Mac Ollama (`ollama serve` via the bundled binary, `
 | 1024 | 140 tok/s |
 | 2048 | 140 tok/s |
 
-Flat → `num_batch` is **not** a lever; ingest is bandwidth-bound, not batch-throughput-bound. Keep the default 512.
+Flat → Ollama's `num_batch` is **not** a lever. **Caveat (web research, 2026-05-21):** `num_batch`
+maps to llama.cpp's *logical* batch `n_batch` (`-b`); the lever the literature credits with 2–3×
+prefill speedups is the *physical* micro-batch `n_ubatch` (`-ub`), which I never moved (and Ollama's
+new engine may not expose). So "is ingest tunable?" is **not yet settled** — pending an `-ub` sweep
+run via llama.cpp directly (see `docs/superpowers/plans/2026-05-21-local-speed-RESUME.md` → NEXT
+ACTION). The flat `num_batch` result itself stands.
 
 ### WS2b — KV cache quant (`OLLAMA_KV_CACHE_TYPE=q8_0`, flash-attn on)
 | Metric | f16 (baseline) | q8_0 |
@@ -55,4 +60,8 @@ Flat → `num_batch` is **not** a lever; ingest is bandwidth-bound, not batch-th
 
 q8_0 costs nothing in speed and frees ~2.6 GiB — but that headroom only pays off if we add a draft model in WS3. **Not persisted** (would require running Ollama as a managed `ollama serve`/LaunchAgent instead of the macOS app, since the app ignores the env var). Gate persistence on the WS3 go/no-go.
 
-**Bottom line:** the real bottleneck is generation at ~11 tok/s — untouched by WS2. The next lever is WS3 (speculative decoding with the pulled `qwen3:4b` draft, needs the q8_0 headroom) / WS4 (MLX backend).
+**Bottom line:** the real bottleneck is generation at ~11 tok/s — untouched by WS2. Per web
+research (2026-05-21): **MLX (WS4) is dropped** — it slows prefill on M2 (no native bf16), its
+decode edge vanishes at 27B, and it risks the prompt-cache win. One ingest question remains open —
+the `n_ubatch` micro-batch (see WS2a caveat above), to be tested via llama.cpp. After that, the only
+generation lever is WS3 (speculative decoding with the pulled `qwen3:4b` draft, needs the q8_0 headroom).
