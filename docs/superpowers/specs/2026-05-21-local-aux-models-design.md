@@ -108,15 +108,15 @@ We did not trust the benchmarks alone. We ran the **exact production `triage_spe
 ## 5. Final architecture
 
 ```
-Hermes (Arch) ──aux──> LiteLLM gateway (Mac :4000) ──┬── aux-local ──> Ollama (Arch 7900XTX) qwen3:4b   [title, compression, profile_describer, triage_specifier]
+Hermes (Arch) ──aux──> LiteLLM gateway (Mac :4000) ──┬── aux-local ──> Ollama (Arch 7900XTX) qwen3:4b   [title, profile_describer, triage_specifier]
                                                      ├── private   ──> Ollama (Mac M2 Max)  qwen3.6:27b [curator, weekly/idle]
-                                                     └── main/deep ──> GPT-5-mini / OpenRouter           [unchanged; no aux default here]
+                                                     └── main      ──> GPT-5-mini / OpenRouter           [compression — see §10]
 ```
 
 | Aux task | Gateway model | Backend | Why |
 |---|---|---|---|
 | `title_generation` | `aux-local` | Arch 4B | hot path, trivial, snappy + private |
-| `compression` | `aux-local` | Arch 4B | hot path, low need |
+| `compression` | `main` | GPT-5-mini | summary ctx must ≥ main + 64k floor — see §10 |
 | `profile_describer` | `aux-local` | Arch 4B | light |
 | `triage_specifier` | `aux-local` | Arch 4B | off path; **proven** in §4.3 |
 | `curator` | `private` | Mac 27B | rare, capable, free, on-device |
@@ -139,7 +139,7 @@ Closes comfortably. **Autocomplete note (future, out of scope):** `Qwen2.5-Coder
 
 1. **Mac / LiteLLM:** add `aux-local` model → `ollama/qwen3:4b-instruct-2507` at the Arch LAN IP, `cost_per_token: 0`; reload the gateway.
 2. **Arch / Ollama:** set `OLLAMA_HOST=0.0.0.0`, restart the service, firewall-scope `:11434` to the Mac.
-3. **Arch / Hermes** (`~/.hermes/config.yaml`): point `title_generation`, `compression`, `profile_describer`, `triage_specifier` at `model: aux-local`; point `curator` at `model: private`; raise `curator` timeout.
+3. **Arch / Hermes** (`~/.hermes/config.yaml`): point `title_generation`, `profile_describer`, `triage_specifier` at `model: aux-local`; point `compression` at `model: main` (see §10); point `curator` at `model: private`; raise `curator` timeout.
 4. **Docs:** update `README.md` and `docs/runbook.md` in the same change.
 
 ## 8. Verification gates
@@ -152,10 +152,27 @@ Closes comfortably. **Autocomplete note (future, out of scope):** `Qwen2.5-Coder
 - [x] Firewall persistence resolved (see below).
 - [x] A real Hermes turn titled via `aux-local` in live use: `agent.auxiliary_client: Auxiliary title_generation: using custom (aux-local)` at 14:10:14 local = the 103-token, €0 gateway spend-log entry at 12:10:14Z. Full loop (Hermes → gateway → Arch 4B) confirmed on-device and free.
 
-*(Minor follow-up: Hermes logs "Could not detect context length for model 'aux-local' … defaulting to 256,000" — harmless for tiny aux prompts; optionally set `model.context_length` for `aux-local` in `~/.hermes/config.yaml` to silence it.)*
+*(That "Could not detect context length … defaulting to 256,000" log turned out to be more than cosmetic — it pointed at a real silent-truncation bug and drove the §10 follow-up below.)*
 
 **Firewall persistence — RESOLVED.** The box runs no general firewall (stock Arch ships none enabled), so rather than enable the default-deny skeleton we persisted only the surgical `ollama_guard` table via a boot-time oneshot unit. Captured in [`arch/`](../../../arch/): `ollama-lan.conf` (LAN bind), `nftables-ollama-guard.nft` (the fence), `ollama-guard.service` (`enabled`, loads it after the network is up without flushing libvirt's tables). Verified `enabled + active`. Debugging story (an `iptables`-nft-shim trap silently dropped `:11434`) in [`docs/journal/2026-05-21-firewall-iptables-nft-shim-trap.md`](../../journal/2026-05-21-firewall-iptables-nft-shim-trap.md).
 
 ## 9. Non-goals
 
 Changing route roles (`main` stays default brain); GDPR/Presidio; the autocomplete implementation (future); replacing the Mac main model.
+
+## 10. Follow-up — context-length detection & compression re-route (2026-05-21)
+
+The aux work shipped with a warning that Hermes "could not detect context length … defaulting to 256,000." Investigating it surfaced a real **silent-truncation** bug and an unsafe compression route. Four findings:
+
+1. **Every alias probes-down to 256k.** Hermes reads context from the endpoint's `/v1/models`; LiteLLM's omits it, and the gateway aliases aren't in models.dev — so all default to 262144.
+2. **Silent truncation (local).** Hermes budgeted `private` against 256k while Ollama loaded `qwen3.6:27b` at **32k** → Ollama truncated the prompt with no error. Lost context on `private` in normal use.
+3. **`private` below Hermes' minimum.** Hermes requires **≥64k** for any main-agent model; `private` is the `main` budget-cap fallback, so it qualifies. It was at 32k.
+4. **Compression route unsafe.** The summary model must have a context window **≥ the main model's**, and Hermes enforces a **64k hard floor** on it; below either, the middle turns are dropped *without* a summary (silent context loss). `compression` was on the 4B at 32k — failing both.
+
+**Fixes (all verified):**
+
+- **Per-model `context_length` declared in Hermes** (`~/.hermes/config.yaml`, gateway `custom_providers` `models:` map) — `main`/`deep` = 400000 (GPT-5-mini/GPT-5, true windows from the OpenRouter API), `private` = 65536, `aux-local` = 32768. This override is consulted **before** the probe/cache (`get_model_context_length` step 0b), so it always wins; verified by calling Hermes' own resolver against the live config. The fix is **Hermes-side, not LiteLLM** (LiteLLM's `/v1/models` can't carry it). Stale `context_length_cache.yaml` blanked.
+- **Mac `private` bumped to `num_ctx: 65536`** (`mac/litellm-config.yaml`) so the 65536 declaration is truthful. Measured **26 GB / 100% GPU** on the 32 GB Mac (default f16 KV — Qwen3 GQA keeps the KV small); no `q8_0` or `iogpu.wired_limit` change needed. Verified live: a gateway `private` request, then `ollama ps` → `CONTEXT 65536`, `UNTIL Forever`.
+- **`compression` re-routed `aux-local` → `main`** (≥ main always, clears the 64k floor). The other three aux tasks stay on `aux-local` — they're short single-shot tasks, not whole-conversation summaries, so the rule doesn't apply.
+
+Story: [`docs/journal/2026-05-21-context-length-silent-truncation.md`](../../journal/2026-05-21-context-length-silent-truncation.md).

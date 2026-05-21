@@ -12,6 +12,7 @@ model_list:
       api_base: http://host.docker.internal:11434
       keep_alive: -1             # keep model resident: no reload, prompt cache stays warm
       reasoning_effort: none     # thinking off (the only local route now; local-think dropped)
+      num_ctx: 65536             # >=64k: Hermes main-model floor; measured 26GB/100% GPU on the 32GB Mac (f16 KV)
   - model_name: aux-local        # Hermes text aux tasks: local 4B on the Arch 7900XTX (on-device, EUR0)
     litellm_params:
       model: ollama_chat/qwen3:4b-instruct-2507-q4_K_M

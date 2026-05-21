@@ -39,7 +39,7 @@ graph TD
 | Hermes Agent | Arch workstation | Agent brain: skills, memory, email gateway. Single main model → the gateway. |
 | LiteLLM Proxy | Mac M2 Max (`:4000`) | OpenAI-compatible gateway: routing, **€100/mo** budget cap, token cap, logging. |
 | Ollama | Mac M2 Max (`:11434`) | One ~24 GB agentic model — the `private` route (privacy / €0 / bulk); also runs the weekly `curator` aux task. |
-| Ollama | Arch workstation (`:11434`) | Local `qwen3:4b-instruct-2507` — the `aux-local` route for Hermes' hot-path aux tasks (titles, compression, profiles, Kanban specs). On-device, €0. |
+| Ollama | Arch workstation (`:11434`) | Local `qwen3:4b-instruct-2507` — the `aux-local` route for Hermes' hot-path aux tasks (titles, profiles, Kanban specs). On-device, €0. (`compression` routes to cloud `main`: its window must ≥ the main model's — see runbook.) |
 | OpenRouter | Cloud | `main` (GPT-5-mini default brain) + `deep`/`deep-fallback` (frontier research). |
 | Observability | Mac → NAS | LiteLLM dashboard (`:4000/ui`) now; Langfuse on the NAS later. |
 
