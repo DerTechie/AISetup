@@ -12,6 +12,13 @@ model_list:
       api_base: http://host.docker.internal:11434
       keep_alive: -1             # keep model resident: no reload, prompt cache stays warm
       reasoning_effort: none     # thinking off (the only local route now; local-think dropped)
+  - model_name: aux-local        # Hermes text aux tasks: local 4B on the Arch 7900XTX (on-device, EUR0)
+    litellm_params:
+      model: ollama_chat/qwen3:4b-instruct-2507-q4_K_M
+      api_base: http://10.63.0.29:11434   # Arch workstation Ollama over the LAN (gateway round-trips back)
+      keep_alive: 10m            # warm during a session, frees VRAM when idle (shared working-machine GPU)
+      input_cost_per_token: 0    # local compute: never counts against the EUR100 cap, still logged
+      output_cost_per_token: 0
   - model_name: deep             # heavy research: GPT-5 (served first-party by OpenAI + Azure)
     litellm_params:
       model: openrouter/openai/gpt-5

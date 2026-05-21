@@ -12,8 +12,9 @@ A hybrid AI-agent infrastructure with a **fast cloud brain** for everyday speed,
 
 ```mermaid
 graph TD
-    subgraph Arch[Arch Workstation - 7900 XTX, freed up]
+    subgraph Arch[Arch Workstation - 7900 XTX]
         H[Hermes Agent<br/>single main model]
+        OA[Ollama :11434<br/>qwen3:4b auxiliary model]
     end
     subgraph Mac[Mac M2 Max - headless, no-sleep]
         L[LiteLLM Proxy :4000<br/>OpenAI-compatible<br/>routing + budget cap + logging]
@@ -26,6 +27,7 @@ graph TD
     NAS[(NAS - Langfuse, later)]
 
     H -->|OpenAI /v1| L
+    L -->|model: aux-local| OA
     L -->|model: deep / main| OR
     L -. logs/traces .-> NAS
 ```
@@ -36,7 +38,8 @@ graph TD
 |---|---|---|
 | Hermes Agent | Arch workstation | Agent brain: skills, memory, email gateway. Single main model → the gateway. |
 | LiteLLM Proxy | Mac M2 Max (`:4000`) | OpenAI-compatible gateway: routing, **€100/mo** budget cap, token cap, logging. |
-| Ollama | Mac M2 Max (`:11434`) | One ~24 GB agentic model — the `private` route (privacy / €0 / bulk). |
+| Ollama | Mac M2 Max (`:11434`) | One ~24 GB agentic model — the `private` route (privacy / €0 / bulk); also runs the weekly `curator` aux task. |
+| Ollama | Arch workstation (`:11434`) | Local `qwen3:4b-instruct-2507` — the `aux-local` route for Hermes' hot-path aux tasks (titles, compression, profiles, Kanban specs). On-device, €0. |
 | OpenRouter | Cloud | `main` (GPT-5-mini default brain) + `deep`/`deep-fallback` (frontier research). |
 | Observability | Mac → NAS | LiteLLM dashboard (`:4000/ui`) now; Langfuse on the NAS later. |
 
