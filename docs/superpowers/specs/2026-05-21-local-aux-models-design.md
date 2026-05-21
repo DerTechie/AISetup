@@ -148,10 +148,11 @@ Closes comfortably. **Autocomplete note (future, out of scope):** `Qwen2.5-Coder
 - [x] 4B produces valid, quality `triage_specifier` output (§4.3).
 - [x] Gateway round trip works: `aux-local` call via the gateway returns from the Arch 4B (`served model: aux-local`, ~1 s round trip, usage tracked). Required binding Arch Ollama to the LAN (`OLLAMA_HOST=0.0.0.0:11434`) and removing a stray `iptables`-created `ip filter` drop on port 11434.
 - [x] `aux-local` calls register €0 (`x-litellm-response-cost-original: 0.0`).
-- [ ] `curator` completes on the Mac within the 1800 s timeout (live; weekly/idle — verify with `hermes curator run --dry-run`).
+- [x] `curator` path verified: dry-run runs clean (`llm: skipped`, no skills yet) and its backend `private` route (Mac 27B) answers through the gateway (~6 s). Full agentic loop within 1800 s is only measurable once agent-created skills exist.
+- [x] Firewall persistence resolved (see below).
 - [ ] A real Hermes turn titles via `aux-local` (live; takes effect on next Hermes restart).
 
-**Known follow-up — firewall persistence:** the `nft` hardening (`ollama_guard` table, restricting `:11434` to localhost + the Mac) is **runtime-only** because `nftables.service` is disabled. On reboot it vanishes while `OLLAMA_HOST=0.0.0.0` persists (systemd drop-in) — leaving Ollama open to the whole LAN. Persist `ollama_guard` (e.g. a non-flushing `nft -f` include loaded by a small systemd unit after the network is up, so it doesn't disturb libvirt's dynamic tables) before relying on the hardening.
+**Firewall persistence — RESOLVED.** The box runs no general firewall (stock Arch ships none enabled), so rather than enable the default-deny skeleton we persisted only the surgical `ollama_guard` table via a boot-time oneshot unit. Captured in [`arch/`](../../../arch/): `ollama-lan.conf` (LAN bind), `nftables-ollama-guard.nft` (the fence), `ollama-guard.service` (`enabled`, loads it after the network is up without flushing libvirt's tables). Verified `enabled + active`. Debugging story (an `iptables`-nft-shim trap silently dropped `:11434`) in [`docs/journal/2026-05-21-firewall-iptables-nft-shim-trap.md`](../../journal/2026-05-21-firewall-iptables-nft-shim-trap.md).
 
 ## 9. Non-goals
 
