@@ -16,8 +16,8 @@ def fmt_mtok(per_token):
     if per_token is None or per_token == "":
         return ""
     value = (Decimal(str(per_token)) * _PER_MILLION).normalize()
-    # `+ Decimal(0)` collapses exponents like 2.5E+1 back to plain form.
-    return f"{value + Decimal(0):f}"
+    # `:f` renders plain decimal (no scientific notation); normalize drops trailing zeros.
+    return f"{value:f}"
 
 
 def write_csv(path, fieldnames, rows, sort_key):
