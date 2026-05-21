@@ -5,7 +5,7 @@ turn1: cold full ingest
 turn2: same prefix, grown conversation  -> should be a cache hit (fast)
 turn3: same as turn2 but ONE token changed at the FRONT -> full re-ingest (slow)
 """
-import json, time, urllib.request
+import json, urllib.request
 HOST = "http://10.63.0.32:11434/api/chat"
 MODEL = "qwen3.6:27b"
 HEADER = "You are Hermes, an agentic assistant. Session started 2026-05-21T02:15:00Z."
