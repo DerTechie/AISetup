@@ -1,0 +1,359 @@
+openrouter_id,name,prompt_usd_per_mtok,completion_usd_per_mtok,blended_usd_per_mtok,aa_intelligence_index
+ai21/jamba-large-1.7,AI21: Jamba Large 1.7,2,8,3.5,
+aion-labs/aion-1.0,AionLabs: Aion-1.0,4,8,5,
+aion-labs/aion-1.0-mini,AionLabs: Aion-1.0-Mini,0.7,1.4,0.875,
+aion-labs/aion-2.0,AionLabs: Aion-2.0,0.8,1.6,1,
+aion-labs/aion-rp-llama-3.1-8b,AionLabs: Aion-RP 1.0 (8B),0.8,1.6,1,
+alfredpros/codellama-7b-instruct-solidity,AlfredPros: CodeLLaMa 7B Instruct Solidity,0.8,1.2,0.9,
+alibaba/tongyi-deepresearch-30b-a3b,Tongyi DeepResearch 30B A3B,0.09,0.45,0.18,
+allenai/olmo-3-32b-think,AllenAI: Olmo 3 32B Think,0.15,0.5,0.2375,12.1
+amazon/nova-2-lite-v1,Amazon: Nova 2 Lite,0.3,2.5,0.85,
+amazon/nova-lite-v1,Amazon: Nova Lite 1.0,0.06,0.24,0.105,
+amazon/nova-micro-v1,Amazon: Nova Micro 1.0,0.035,0.14,0.06125,
+amazon/nova-premier-v1,Amazon: Nova Premier 1.0,2.5,12.5,5,
+amazon/nova-pro-v1,Amazon: Nova Pro 1.0,0.8,3.2,1.4,
+anthracite-org/magnum-v4-72b,Magnum v4 72B,3,5,3.5,
+anthropic/claude-3-haiku,Anthropic: Claude 3 Haiku,0.25,1.25,0.5,12.3
+anthropic/claude-3.5-haiku,Anthropic: Claude 3.5 Haiku,0.8,4,1.6,18.7
+anthropic/claude-haiku-4.5,Anthropic: Claude Haiku 4.5,1,5,2,
+anthropic/claude-opus-4,Anthropic: Claude Opus 4,15,75,30,
+anthropic/claude-opus-4.1,Anthropic: Claude Opus 4.1,15,75,30,
+anthropic/claude-opus-4.5,Anthropic: Claude Opus 4.5,5,25,10,43.1
+anthropic/claude-opus-4.6,Anthropic: Claude Opus 4.6,5,25,10,46.5
+anthropic/claude-opus-4.6-fast,Anthropic: Claude Opus 4.6 (Fast),30,150,60,
+anthropic/claude-opus-4.7,Anthropic: Claude Opus 4.7,5,25,10,57.3
+anthropic/claude-opus-4.7-fast,Anthropic: Claude Opus 4.7 (Fast),30,150,60,
+anthropic/claude-sonnet-4,Anthropic: Claude Sonnet 4,3,15,6,
+anthropic/claude-sonnet-4.5,Anthropic: Claude Sonnet 4.5,3,15,6,
+anthropic/claude-sonnet-4.6,Anthropic: Claude Sonnet 4.6,3,15,6,44.4
+arcee-ai/coder-large,Arcee AI: Coder Large,0.5,0.8,0.575,
+arcee-ai/maestro-reasoning,Arcee AI: Maestro Reasoning,0.9,3.3,1.5,
+arcee-ai/spotlight,Arcee AI: Spotlight,0.18,0.18,0.18,
+arcee-ai/trinity-large-thinking,Arcee AI: Trinity Large Thinking,0.22,0.85,0.3775,31.9
+arcee-ai/trinity-large-thinking:free,Arcee AI: Trinity Large Thinking (free),0,0,0,
+arcee-ai/trinity-mini,Arcee AI: Trinity Mini,0.045,0.15,0.07125,
+arcee-ai/virtuoso-large,Arcee AI: Virtuoso Large,0.75,1.2,0.8625,
+baidu/cobuddy:free,Baidu Qianfan: CoBuddy (free),0,0,0,
+baidu/ernie-4.5-21b-a3b,Baidu: ERNIE 4.5 21B A3B,0.07,0.28,0.1225,
+baidu/ernie-4.5-21b-a3b-thinking,Baidu: ERNIE 4.5 21B A3B Thinking,0.07,0.28,0.1225,
+baidu/ernie-4.5-300b-a47b,Baidu: ERNIE 4.5 300B A47B ,0.28,1.1,0.485,15
+baidu/ernie-4.5-vl-28b-a3b,Baidu: ERNIE 4.5 VL 28B A3B,0.14,0.56,0.245,
+baidu/ernie-4.5-vl-424b-a47b,Baidu: ERNIE 4.5 VL 424B A47B ,0.42,1.25,0.6275,
+baidu/qianfan-ocr-fast,Baidu: Qianfan-OCR-Fast,0.68,2.81,1.2125,
+bytedance-seed/seed-1.6,ByteDance Seed: Seed 1.6,0.25,2,0.6875,
+bytedance-seed/seed-1.6-flash,ByteDance Seed: Seed 1.6 Flash,0.075,0.3,0.13125,
+bytedance-seed/seed-2.0-lite,ByteDance Seed: Seed-2.0-Lite,0.25,2,0.6875,
+bytedance-seed/seed-2.0-mini,ByteDance Seed: Seed-2.0-Mini,0.1,0.4,0.175,
+bytedance/ui-tars-1.5-7b,ByteDance: UI-TARS 7B ,0.1,0.2,0.125,
+cognitivecomputations/dolphin-mistral-24b-venice-edition:free,Venice: Uncensored (free),0,0,0,
+cohere/command-a,Cohere: Command A,2.5,10,4.375,13.5
+cohere/command-r-08-2024,Cohere: Command R (08-2024),0.15,0.6,0.2625,
+cohere/command-r-plus-08-2024,Cohere: Command R+ (08-2024),2.5,10,4.375,
+cohere/command-r7b-12-2024,Cohere: Command R7B (12-2024),0.0375,0.15,0.065625,
+deepcogito/cogito-v2.1-671b,Deep Cogito: Cogito v2.1 671B,1.25,1.25,1.25,
+deepseek/deepseek-chat,DeepSeek: DeepSeek V3,0.32,0.89,0.4625,16.5
+deepseek/deepseek-chat-v3-0324,DeepSeek: DeepSeek V3 0324,0.2,0.77,0.3425,22.3
+deepseek/deepseek-chat-v3.1,DeepSeek: DeepSeek V3.1,0.21,0.79,0.355,28.1
+deepseek/deepseek-r1,DeepSeek: R1,0.7,2.5,1.15,
+deepseek/deepseek-r1-0528,DeepSeek: R1 0528,0.5,2.15,0.9125,
+deepseek/deepseek-r1-distill-llama-70b,DeepSeek: R1 Distill Llama 70B,0.7,0.8,0.725,
+deepseek/deepseek-r1-distill-qwen-32b,DeepSeek: R1 Distill Qwen 32B,0.29,0.29,0.29,
+deepseek/deepseek-v3.1-terminus,DeepSeek: DeepSeek V3.1 Terminus,0.27,0.95,0.44,28.5
+deepseek/deepseek-v3.2,DeepSeek: DeepSeek V3.2,0.252,0.378,0.2835,32.1
+deepseek/deepseek-v3.2-exp,DeepSeek: DeepSeek V3.2 Exp,0.27,0.41,0.305,
+deepseek/deepseek-v3.2-speciale,DeepSeek: DeepSeek V3.2 Speciale,0.287,0.431,0.323,29.4
+deepseek/deepseek-v4-flash,DeepSeek: DeepSeek V4 Flash,0.112,0.224,0.14,46.5
+deepseek/deepseek-v4-flash:free,DeepSeek: DeepSeek V4 Flash (free),0,0,0,
+deepseek/deepseek-v4-pro,DeepSeek: DeepSeek V4 Pro,0.435,0.87,0.54375,51.5
+essentialai/rnj-1-instruct,EssentialAI: Rnj 1 Instruct,0.15,0.15,0.15,
+google/gemini-2.0-flash-001,Google: Gemini 2.0 Flash,0.1,0.4,0.175,18.5
+google/gemini-2.0-flash-lite-001,Google: Gemini 2.0 Flash Lite,0.075,0.3,0.13125,
+google/gemini-2.5-flash,Google: Gemini 2.5 Flash,0.3,2.5,0.85,20.6
+google/gemini-2.5-flash-image,Google: Nano Banana (Gemini 2.5 Flash Image),0.3,2.5,0.85,
+google/gemini-2.5-flash-lite,Google: Gemini 2.5 Flash Lite,0.1,0.4,0.175,12.7
+google/gemini-2.5-flash-lite-preview-09-2025,Google: Gemini 2.5 Flash Lite Preview 09-2025,0.1,0.4,0.175,19.4
+google/gemini-2.5-pro,Google: Gemini 2.5 Pro,1.25,10,3.4375,34.6
+google/gemini-2.5-pro-preview,Google: Gemini 2.5 Pro Preview 06-05,1.25,10,3.4375,
+google/gemini-2.5-pro-preview-05-06,Google: Gemini 2.5 Pro Preview 05-06,1.25,10,3.4375,
+google/gemini-3-flash-preview,Google: Gemini 3 Flash Preview,0.5,3,1.125,
+google/gemini-3-pro-image-preview,Google: Nano Banana Pro (Gemini 3 Pro Image Preview),2,12,4.5,
+google/gemini-3.1-flash-image-preview,Google: Nano Banana 2 (Gemini 3.1 Flash Image Preview),0.5,3,1.125,
+google/gemini-3.1-flash-lite,Google: Gemini 3.1 Flash Lite,0.25,1.5,0.5625,
+google/gemini-3.1-flash-lite-preview,Google: Gemini 3.1 Flash Lite Preview,0.25,1.5,0.5625,33.5
+google/gemini-3.1-pro-preview,Google: Gemini 3.1 Pro Preview,2,12,4.5,57.2
+google/gemini-3.1-pro-preview-customtools,Google: Gemini 3.1 Pro Preview Custom Tools,2,12,4.5,
+google/gemini-3.5-flash,Google: Gemini 3.5 Flash,1.5,9,3.375,55.3
+google/gemma-2-27b-it,Google: Gemma 2 27B,0.65,0.65,0.65,
+google/gemma-3-12b-it,Google: Gemma 3 12B,0.04,0.13,0.0625,8.8
+google/gemma-3-27b-it,Google: Gemma 3 27B,0.08,0.16,0.1,10.3
+google/gemma-3-4b-it,Google: Gemma 3 4B,0.04,0.08,0.05,6.3
+google/gemma-3n-e4b-it,Google: Gemma 3n 4B,0.06,0.12,0.075,
+google/gemma-4-26b-a4b-it,Google: Gemma 4 26B A4B ,0.06,0.33,0.1275,31.2
+google/gemma-4-26b-a4b-it:free,Google: Gemma 4 26B A4B  (free),0,0,0,
+google/gemma-4-31b-it,Google: Gemma 4 31B,0.12,0.37,0.1825,39.2
+google/gemma-4-31b-it:free,Google: Gemma 4 31B (free),0,0,0,
+google/lyria-3-clip-preview,Google: Lyria 3 Clip Preview,0,0,0,
+google/lyria-3-pro-preview,Google: Lyria 3 Pro Preview,0,0,0,
+gryphe/mythomax-l2-13b,MythoMax 13B,0.06,0.06,0.06,
+ibm-granite/granite-4.0-h-micro,IBM: Granite 4.0 Micro,0.017,0.112,0.04075,7.7
+ibm-granite/granite-4.1-8b,IBM: Granite 4.1 8B,0.05,0.1,0.0625,12.4
+inception/mercury-2,Inception: Mercury 2,0.25,0.75,0.375,32.8
+inclusionai/ling-2.6-1t,inclusionAI: Ling-2.6-1T,0.075,0.625,0.2125,33.6
+inclusionai/ling-2.6-flash,inclusionAI: Ling-2.6-flash,0.01,0.03,0.015,26.2
+inclusionai/ring-2.6-1t,inclusionAI: Ring-2.6-1T,0.075,0.625,0.2125,38.5
+inflection/inflection-3-pi,Inflection: Inflection 3 Pi,2.5,10,4.375,
+inflection/inflection-3-productivity,Inflection: Inflection 3 Productivity,2.5,10,4.375,
+kwaipilot/kat-coder-pro-v2,Kwaipilot: KAT-Coder-Pro V2,0.3,1.2,0.525,43.8
+liquid/lfm-2-24b-a2b,LiquidAI: LFM2-24B-A2B,0.03,0.12,0.0525,10.5
+liquid/lfm-2.5-1.2b-instruct:free,LiquidAI: LFM2.5-1.2B-Instruct (free),0,0,0,
+liquid/lfm-2.5-1.2b-thinking:free,LiquidAI: LFM2.5-1.2B-Thinking (free),0,0,0,
+mancer/weaver,Mancer: Weaver (alpha),0.75,1,0.8125,
+meta-llama/llama-3-70b-instruct,Meta: Llama 3 70B Instruct,0.51,0.74,0.5675,
+meta-llama/llama-3-8b-instruct,Meta: Llama 3 8B Instruct,0.04,0.04,0.04,
+meta-llama/llama-3.1-70b-instruct,Meta: Llama 3.1 70B Instruct,0.4,0.4,0.4,
+meta-llama/llama-3.1-8b-instruct,Meta: Llama 3.1 8B Instruct,0.02,0.05,0.0275,
+meta-llama/llama-3.2-11b-vision-instruct,Meta: Llama 3.2 11B Vision Instruct,0.245,0.245,0.245,
+meta-llama/llama-3.2-1b-instruct,Meta: Llama 3.2 1B Instruct,0.027,0.201,0.0705,
+meta-llama/llama-3.2-3b-instruct,Meta: Llama 3.2 3B Instruct,0.0509,0.335,0.121925,
+meta-llama/llama-3.2-3b-instruct:free,Meta: Llama 3.2 3B Instruct (free),0,0,0,
+meta-llama/llama-3.3-70b-instruct,Meta: Llama 3.3 70B Instruct,0.1,0.32,0.155,
+meta-llama/llama-3.3-70b-instruct:free,Meta: Llama 3.3 70B Instruct (free),0,0,0,
+meta-llama/llama-4-maverick,Meta: Llama 4 Maverick,0.15,0.6,0.2625,18.4
+meta-llama/llama-4-scout,Meta: Llama 4 Scout,0.08,0.3,0.135,13.5
+meta-llama/llama-guard-3-8b,Llama Guard 3 8B,0.484,0.03,0.3705,
+meta-llama/llama-guard-4-12b,Meta: Llama Guard 4 12B,0.18,0.18,0.18,
+microsoft/phi-4,Microsoft: Phi 4,0.065,0.14,0.08375,10.4
+microsoft/phi-4-mini-instruct,Microsoft: Phi 4 Mini Instruct,0.08,0.35,0.1475,
+microsoft/wizardlm-2-8x22b,WizardLM-2 8x22B,0.62,0.62,0.62,
+minimax/minimax-01,MiniMax: MiniMax-01,0.2,1.1,0.425,
+minimax/minimax-m1,MiniMax: MiniMax M1,0.4,2.2,0.85,
+minimax/minimax-m2,MiniMax: MiniMax M2,0.255,1,0.44125,36.1
+minimax/minimax-m2-her,MiniMax: MiniMax M2-her,0.3,1.2,0.525,
+minimax/minimax-m2.1,MiniMax: MiniMax M2.1,0.29,0.95,0.455,39.4
+minimax/minimax-m2.5,MiniMax: MiniMax M2.5,0.15,1.15,0.4,41.9
+minimax/minimax-m2.5:free,MiniMax: MiniMax M2.5 (free),0,0,0,
+minimax/minimax-m2.7,MiniMax: MiniMax M2.7,0.279,1.2,0.50925,49.6
+mistralai/codestral-2508,Mistral: Codestral 2508,0.3,0.9,0.45,
+mistralai/devstral-2512,Mistral: Devstral 2 2512,0.4,2,0.8,
+mistralai/devstral-medium,Mistral: Devstral Medium,0.4,2,0.8,18.7
+mistralai/devstral-small,Mistral: Devstral Small 1.1,0.1,0.3,0.15,
+mistralai/ministral-14b-2512,Mistral: Ministral 3 14B 2512,0.2,0.2,0.2,
+mistralai/ministral-3b-2512,Mistral: Ministral 3 3B 2512,0.1,0.1,0.1,
+mistralai/ministral-8b-2512,Mistral: Ministral 3 8B 2512,0.15,0.15,0.15,
+mistralai/mistral-7b-instruct-v0.1,Mistral: Mistral 7B Instruct v0.1,0.11,0.19,0.13,
+mistralai/mistral-large,Mistral Large,2,6,3,9.9
+mistralai/mistral-large-2407,Mistral Large 2407,2,6,3,13
+mistralai/mistral-large-2411,Mistral Large 2411,2,6,3,
+mistralai/mistral-large-2512,Mistral: Mistral Large 3 2512,0.5,1.5,0.75,
+mistralai/mistral-medium-3,Mistral: Mistral Medium 3,0.4,2,0.8,18.8
+mistralai/mistral-medium-3-5,Mistral: Mistral Medium 3.5,1.5,7.5,3,39.2
+mistralai/mistral-medium-3.1,Mistral: Mistral Medium 3.1,0.4,2,0.8,21.3
+mistralai/mistral-nemo,Mistral: Mistral Nemo,0.02,0.03,0.0225,
+mistralai/mistral-saba,Mistral: Saba,0.2,0.6,0.3,
+mistralai/mistral-small-24b-instruct-2501,Mistral: Mistral Small 3,0.05,0.08,0.0575,12.7
+mistralai/mistral-small-2603,Mistral: Mistral Small 4,0.15,0.6,0.2625,27.8
+mistralai/mistral-small-3.1-24b-instruct,Mistral: Mistral Small 3.1 24B,0.351,0.555,0.402,
+mistralai/mistral-small-3.2-24b-instruct,Mistral: Mistral Small 3.2 24B,0.075,0.2,0.10625,
+mistralai/mixtral-8x22b-instruct,Mistral: Mixtral 8x22B Instruct,2,6,3,
+mistralai/pixtral-large-2411,Mistral: Pixtral Large 2411,2,6,3,14
+mistralai/voxtral-small-24b-2507,Mistral: Voxtral Small 24B 2507,0.1,0.3,0.15,
+moonshotai/kimi-k2,MoonshotAI: Kimi K2 0711,0.57,2.3,1.0025,
+moonshotai/kimi-k2-0905,MoonshotAI: Kimi K2 0905,0.6,2.5,1.075,30.9
+moonshotai/kimi-k2-thinking,MoonshotAI: Kimi K2 Thinking,0.6,2.5,1.075,40.9
+moonshotai/kimi-k2.5,MoonshotAI: Kimi K2.5,0.4,1.9,0.775,46.8
+moonshotai/kimi-k2.6,MoonshotAI: Kimi K2.6,0.73,3.49,1.42,53.9
+morph/morph-v3-fast,Morph: Morph V3 Fast,0.8,1.2,0.9,
+morph/morph-v3-large,Morph: Morph V3 Large,0.9,1.9,1.15,
+nex-agi/deepseek-v3.1-nex-n1,Nex AGI: DeepSeek V3.1 Nex N1,0.135,0.5,0.22625,
+nousresearch/hermes-2-pro-llama-3-8b,NousResearch: Hermes 2 Pro - Llama-3 8B,0.14,0.14,0.14,
+nousresearch/hermes-3-llama-3.1-405b,Nous: Hermes 3 405B Instruct,1,1,1,
+nousresearch/hermes-3-llama-3.1-405b:free,Nous: Hermes 3 405B Instruct (free),0,0,0,
+nousresearch/hermes-3-llama-3.1-70b,Nous: Hermes 3 70B Instruct,0.3,0.3,0.3,
+nousresearch/hermes-4-405b,Nous: Hermes 4 405B,1,3,1.5,
+nousresearch/hermes-4-70b,Nous: Hermes 4 70B,0.13,0.4,0.1975,
+nvidia/llama-3.3-nemotron-super-49b-v1.5,NVIDIA: Llama 3.3 Nemotron Super 49B V1.5,0.1,0.4,0.175,
+nvidia/nemotron-3-nano-30b-a3b,NVIDIA: Nemotron 3 Nano 30B A3B,0.05,0.2,0.0875,
+nvidia/nemotron-3-nano-30b-a3b:free,NVIDIA: Nemotron 3 Nano 30B A3B (free),0,0,0,
+nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free,NVIDIA: Nemotron 3 Nano Omni (free),0,0,0,
+nvidia/nemotron-3-super-120b-a12b,NVIDIA: Nemotron 3 Super,0.09,0.45,0.18,
+nvidia/nemotron-3-super-120b-a12b:free,NVIDIA: Nemotron 3 Super (free),0,0,0,
+nvidia/nemotron-nano-12b-v2-vl:free,NVIDIA: Nemotron Nano 12B 2 VL (free),0,0,0,
+nvidia/nemotron-nano-9b-v2,NVIDIA: Nemotron Nano 9B V2,0.04,0.16,0.07,
+nvidia/nemotron-nano-9b-v2:free,NVIDIA: Nemotron Nano 9B V2 (free),0,0,0,
+openai/gpt-3.5-turbo,OpenAI: GPT-3.5 Turbo,0.5,1.5,0.75,9
+openai/gpt-3.5-turbo-0613,OpenAI: GPT-3.5 Turbo (older v0613),1,2,1.25,
+openai/gpt-3.5-turbo-16k,OpenAI: GPT-3.5 Turbo 16k,3,4,3.25,
+openai/gpt-3.5-turbo-instruct,OpenAI: GPT-3.5 Turbo Instruct,1.5,2,1.625,
+openai/gpt-4,OpenAI: GPT-4,30,60,37.5,12.8
+openai/gpt-4-0314,OpenAI: GPT-4 (older v0314),30,60,37.5,
+openai/gpt-4-1106-preview,OpenAI: GPT-4 Turbo (older v1106),10,30,15,
+openai/gpt-4-turbo,OpenAI: GPT-4 Turbo,10,30,15,13.7
+openai/gpt-4-turbo-preview,OpenAI: GPT-4 Turbo Preview,10,30,15,
+openai/gpt-4.1,OpenAI: GPT-4.1,2,8,3.5,26.3
+openai/gpt-4.1-mini,OpenAI: GPT-4.1 Mini,0.4,1.6,0.7,22.9
+openai/gpt-4.1-nano,OpenAI: GPT-4.1 Nano,0.1,0.4,0.175,13
+openai/gpt-4o,OpenAI: GPT-4o,2.5,10,4.375,17.3
+openai/gpt-4o-2024-05-13,OpenAI: GPT-4o (2024-05-13),5,15,7.5,14.5
+openai/gpt-4o-2024-08-06,OpenAI: GPT-4o (2024-08-06),2.5,10,4.375,18.6
+openai/gpt-4o-2024-11-20,OpenAI: GPT-4o (2024-11-20),2.5,10,4.375,
+openai/gpt-4o-audio-preview,OpenAI: GPT-4o Audio,2.5,10,4.375,
+openai/gpt-4o-mini,OpenAI: GPT-4o-mini,0.15,0.6,0.2625,12.6
+openai/gpt-4o-mini-2024-07-18,OpenAI: GPT-4o-mini (2024-07-18),0.15,0.6,0.2625,
+openai/gpt-4o-mini-search-preview,OpenAI: GPT-4o-mini Search Preview,0.15,0.6,0.2625,
+openai/gpt-4o-search-preview,OpenAI: GPT-4o Search Preview,2.5,10,4.375,
+openai/gpt-5,OpenAI: GPT-5,1.25,10,3.4375,44.6
+openai/gpt-5-chat,OpenAI: GPT-5 Chat,1.25,10,3.4375,
+openai/gpt-5-codex,OpenAI: GPT-5 Codex,1.25,10,3.4375,44.6
+openai/gpt-5-image,OpenAI: GPT-5 Image,10,10,10,
+openai/gpt-5-image-mini,OpenAI: GPT-5 Image Mini,2.5,2,2.375,
+openai/gpt-5-mini,OpenAI: GPT-5 Mini,0.25,2,0.6875,41.2
+openai/gpt-5-nano,OpenAI: GPT-5 Nano,0.05,0.4,0.1375,26.8
+openai/gpt-5-pro,OpenAI: GPT-5 Pro,15,120,41.25,
+openai/gpt-5.1,OpenAI: GPT-5.1,1.25,10,3.4375,47.7
+openai/gpt-5.1-chat,OpenAI: GPT-5.1 Chat,1.25,10,3.4375,
+openai/gpt-5.1-codex,OpenAI: GPT-5.1-Codex,1.25,10,3.4375,43.1
+openai/gpt-5.1-codex-max,OpenAI: GPT-5.1-Codex-Max,1.25,10,3.4375,
+openai/gpt-5.1-codex-mini,OpenAI: GPT-5.1-Codex-Mini,0.25,2,0.6875,38.6
+openai/gpt-5.2,OpenAI: GPT-5.2,1.75,14,4.8125,51.3
+openai/gpt-5.2-chat,OpenAI: GPT-5.2 Chat,1.75,14,4.8125,
+openai/gpt-5.2-codex,OpenAI: GPT-5.2-Codex,1.75,14,4.8125,49
+openai/gpt-5.2-pro,OpenAI: GPT-5.2 Pro,21,168,57.75,
+openai/gpt-5.3-chat,OpenAI: GPT-5.3 Chat,1.75,14,4.8125,
+openai/gpt-5.3-codex,OpenAI: GPT-5.3-Codex,1.75,14,4.8125,53.6
+openai/gpt-5.4,OpenAI: GPT-5.4,2.5,15,5.625,56.8
+openai/gpt-5.4-image-2,OpenAI: GPT-5.4 Image 2,8,15,9.75,
+openai/gpt-5.4-mini,OpenAI: GPT-5.4 Mini,0.75,4.5,1.6875,48.9
+openai/gpt-5.4-nano,OpenAI: GPT-5.4 Nano,0.2,1.25,0.4625,44
+openai/gpt-5.4-pro,OpenAI: GPT-5.4 Pro,30,180,67.5,
+openai/gpt-5.5,OpenAI: GPT-5.5,5,30,11.25,60.2
+openai/gpt-5.5-pro,OpenAI: GPT-5.5 Pro,30,180,67.5,
+openai/gpt-audio,OpenAI: GPT Audio,2.5,10,4.375,
+openai/gpt-audio-mini,OpenAI: GPT Audio Mini,0.6,2.4,1.05,
+openai/gpt-chat-latest,OpenAI: GPT Chat Latest,5,30,11.25,
+openai/gpt-oss-120b,OpenAI: gpt-oss-120b,0.039,0.18,0.07425,33.3
+openai/gpt-oss-120b:free,OpenAI: gpt-oss-120b (free),0,0,0,
+openai/gpt-oss-20b,OpenAI: gpt-oss-20b,0.03,0.14,0.0575,24.5
+openai/gpt-oss-20b:free,OpenAI: gpt-oss-20b (free),0,0,0,
+openai/gpt-oss-safeguard-20b,OpenAI: gpt-oss-safeguard-20b,0.075,0.3,0.13125,
+openai/o1,OpenAI: o1,15,60,26.25,30.7
+openai/o1-pro,OpenAI: o1-pro,150,600,262.5,25.8
+openai/o3,OpenAI: o3,2,8,3.5,38.4
+openai/o3-deep-research,OpenAI: o3 Deep Research,10,40,17.5,
+openai/o3-mini,OpenAI: o3 Mini,1.1,4.4,1.925,25.9
+openai/o3-mini-high,OpenAI: o3 Mini High,1.1,4.4,1.925,25.2
+openai/o3-pro,OpenAI: o3 Pro,20,80,35,40.7
+openai/o4-mini,OpenAI: o4 Mini,1.1,4.4,1.925,33.1
+openai/o4-mini-deep-research,OpenAI: o4 Mini Deep Research,2,8,3.5,
+openai/o4-mini-high,OpenAI: o4 Mini High,1.1,4.4,1.925,
+openrouter/auto,Auto Router,-1000000,-1000000,-1000000,
+openrouter/bodybuilder,Body Builder (beta),-1000000,-1000000,-1000000,
+openrouter/free,Free Models Router,0,0,0,
+openrouter/owl-alpha,Owl Alpha,0,0,0,
+openrouter/pareto-code,Pareto Code Router,-1000000,-1000000,-1000000,
+perceptron/perceptron-mk1,Perceptron: Perceptron Mk1,0.15,1.5,0.4875,
+perplexity/sonar,Perplexity: Sonar,1,1,1,15.5
+perplexity/sonar-deep-research,Perplexity: Sonar Deep Research,2,8,3.5,
+perplexity/sonar-pro,Perplexity: Sonar Pro,3,15,6,15.2
+perplexity/sonar-pro-search,Perplexity: Sonar Pro Search,3,15,6,
+perplexity/sonar-reasoning-pro,Perplexity: Sonar Reasoning Pro,2,8,3.5,24.6
+poolside/laguna-m.1:free,Poolside: Laguna M.1 (free),0,0,0,
+poolside/laguna-xs.2:free,Poolside: Laguna XS.2 (free),0,0,0,
+prime-intellect/intellect-3,Prime Intellect: INTELLECT-3,0.2,1.1,0.425,22.2
+qwen/qwen-2.5-72b-instruct,Qwen2.5 72B Instruct,0.36,0.4,0.37,15.6
+qwen/qwen-2.5-7b-instruct,Qwen: Qwen2.5 7B Instruct,0.04,0.1,0.055,
+qwen/qwen-2.5-coder-32b-instruct,Qwen2.5 Coder 32B Instruct,0.66,1,0.745,12.9
+qwen/qwen-plus,Qwen: Qwen-Plus,0.26,0.78,0.39,
+qwen/qwen-plus-2025-07-28,Qwen: Qwen Plus 0728,0.26,0.78,0.39,
+qwen/qwen-plus-2025-07-28:thinking,Qwen: Qwen Plus 0728 (thinking),0.26,0.78,0.39,
+qwen/qwen2.5-vl-72b-instruct,Qwen: Qwen2.5 VL 72B Instruct,0.25,0.75,0.375,
+qwen/qwen3-14b,Qwen: Qwen3 14B,0.1,0.24,0.135,
+qwen/qwen3-235b-a22b,Qwen: Qwen3 235B A22B,0.455,1.82,0.79625,
+qwen/qwen3-235b-a22b-2507,Qwen: Qwen3 235B A22B Instruct 2507,0.071,0.1,0.07825,25
+qwen/qwen3-235b-a22b-thinking-2507,Qwen: Qwen3 235B A22B Thinking 2507,0.1495,1.495,0.485875,
+qwen/qwen3-30b-a3b,Qwen: Qwen3 30B A3B,0.09,0.45,0.18,
+qwen/qwen3-30b-a3b-instruct-2507,Qwen: Qwen3 30B A3B Instruct 2507,0.09,0.3,0.1425,
+qwen/qwen3-30b-a3b-thinking-2507,Qwen: Qwen3 30B A3B Thinking 2507,0.08,0.4,0.16,
+qwen/qwen3-32b,Qwen: Qwen3 32B,0.08,0.28,0.13,
+qwen/qwen3-8b,Qwen: Qwen3 8B,0.05,0.4,0.1375,
+qwen/qwen3-coder,Qwen: Qwen3 Coder 480B A35B,0.22,1.8,0.615,
+qwen/qwen3-coder-30b-a3b-instruct,Qwen: Qwen3 Coder 30B A3B Instruct,0.07,0.27,0.12,20
+qwen/qwen3-coder-flash,Qwen: Qwen3 Coder Flash,0.195,0.975,0.39,
+qwen/qwen3-coder-next,Qwen: Qwen3 Coder Next,0.11,0.8,0.2825,28.3
+qwen/qwen3-coder-plus,Qwen: Qwen3 Coder Plus,0.65,3.25,1.3,
+qwen/qwen3-coder:free,Qwen: Qwen3 Coder 480B A35B (free),0,0,0,
+qwen/qwen3-max,Qwen: Qwen3 Max,0.78,3.9,1.56,31.4
+qwen/qwen3-max-thinking,Qwen: Qwen3 Max Thinking,0.78,3.9,1.56,39.8
+qwen/qwen3-next-80b-a3b-instruct,Qwen: Qwen3 Next 80B A3B Instruct,0.09,1.1,0.3425,20.1
+qwen/qwen3-next-80b-a3b-instruct:free,Qwen: Qwen3 Next 80B A3B Instruct (free),0,0,0,
+qwen/qwen3-next-80b-a3b-thinking,Qwen: Qwen3 Next 80B A3B Thinking,0.0975,0.78,0.268125,
+qwen/qwen3-vl-235b-a22b-instruct,Qwen: Qwen3 VL 235B A22B Instruct,0.2,0.88,0.37,20.8
+qwen/qwen3-vl-235b-a22b-thinking,Qwen: Qwen3 VL 235B A22B Thinking,0.26,2.6,0.845,
+qwen/qwen3-vl-30b-a3b-instruct,Qwen: Qwen3 VL 30B A3B Instruct,0.13,0.52,0.2275,16
+qwen/qwen3-vl-30b-a3b-thinking,Qwen: Qwen3 VL 30B A3B Thinking,0.13,1.56,0.4875,
+qwen/qwen3-vl-32b-instruct,Qwen: Qwen3 VL 32B Instruct,0.104,0.416,0.182,17.2
+qwen/qwen3-vl-8b-instruct,Qwen: Qwen3 VL 8B Instruct,0.08,0.5,0.185,14.3
+qwen/qwen3-vl-8b-thinking,Qwen: Qwen3 VL 8B Thinking,0.117,1.365,0.429,
+qwen/qwen3.5-122b-a10b,Qwen: Qwen3.5-122B-A10B,0.26,2.08,0.715,41.6
+qwen/qwen3.5-27b,Qwen: Qwen3.5-27B,0.195,1.56,0.53625,42.1
+qwen/qwen3.5-35b-a3b,Qwen: Qwen3.5-35B-A3B,0.139,1,0.35425,37.1
+qwen/qwen3.5-397b-a17b,Qwen: Qwen3.5 397B A17B,0.39,2.34,0.8775,45
+qwen/qwen3.5-9b,Qwen: Qwen3.5-9B,0.04,0.15,0.0675,32.4
+qwen/qwen3.5-flash-02-23,Qwen: Qwen3.5-Flash,0.065,0.26,0.11375,
+qwen/qwen3.5-plus-02-15,Qwen: Qwen3.5 Plus 2026-02-15,0.26,1.56,0.585,
+qwen/qwen3.5-plus-20260420,Qwen: Qwen3.5 Plus 2026-04-20,0.3,1.8,0.675,
+qwen/qwen3.6-27b,Qwen: Qwen3.6 27B,0.317,3.2,1.03775,45.8
+qwen/qwen3.6-35b-a3b,Qwen: Qwen3.6 35B A3B,0.15,1,0.3625,43.5
+qwen/qwen3.6-flash,Qwen: Qwen3.6 Flash,0.1875,1.125,0.421875,
+qwen/qwen3.6-max-preview,Qwen: Qwen3.6 Max Preview,1.04,6.24,2.34,
+qwen/qwen3.6-plus,Qwen: Qwen3.6 Plus,0.325,1.95,0.73125,50
+qwen/qwen3.7-max,Qwen: Qwen3.7 Max,2.5,7.5,3.75,56.6
+rekaai/reka-edge,Reka Edge,0.1,0.1,0.1,
+rekaai/reka-flash-3,Reka Flash 3,0.1,0.2,0.125,9.5
+relace/relace-apply-3,Relace: Relace Apply 3,0.85,1.25,0.95,
+relace/relace-search,Relace: Relace Search,1,3,1.5,
+sao10k/l3-euryale-70b,Sao10k: Llama 3 Euryale 70B v2.1,1.48,1.48,1.48,
+sao10k/l3-lunaris-8b,Sao10K: Llama 3 8B Lunaris,0.04,0.05,0.0425,
+sao10k/l3.1-70b-hanami-x1,Sao10K: Llama 3.1 70B Hanami x1,3,3,3,
+sao10k/l3.1-euryale-70b,Sao10K: Llama 3.1 Euryale 70B v2.2,0.85,0.85,0.85,
+sao10k/l3.3-euryale-70b,Sao10K: Llama 3.3 Euryale 70B,0.65,0.75,0.675,
+stepfun/step-3.5-flash,StepFun: Step 3.5 Flash,0.09,0.3,0.1425,38.5
+switchpoint/router,Switchpoint Router,0.85,3.4,1.4875,
+tencent/hunyuan-a13b-instruct,Tencent: Hunyuan A13B Instruct,0.14,0.57,0.2475,
+tencent/hy3-preview,Tencent: Hy3 preview,0.066,0.26,0.1145,
+thedrummer/cydonia-24b-v4.1,TheDrummer: Cydonia 24B V4.1,0.3,0.5,0.35,
+thedrummer/rocinante-12b,TheDrummer: Rocinante 12B,0.17,0.43,0.235,
+thedrummer/skyfall-36b-v2,TheDrummer: Skyfall 36B V2,0.55,0.8,0.6125,
+thedrummer/unslopnemo-12b,TheDrummer: UnslopNemo 12B,0.4,0.4,0.4,
+undi95/remm-slerp-l2-13b,ReMM SLERP 13B,0.45,0.65,0.5,
+upstage/solar-pro-3,Upstage: Solar Pro 3,0.15,0.6,0.2625,25.9
+writer/palmyra-x5,Writer: Palmyra X5,0.6,6,1.95,
+x-ai/grok-4.20,xAI: Grok 4.20,1.25,2.5,1.5625,49.3
+x-ai/grok-4.20-multi-agent,xAI: Grok 4.20 Multi-Agent,2,6,3,
+x-ai/grok-4.3,xAI: Grok 4.3,1.25,2.5,1.5625,53.2
+x-ai/grok-build-0.1,xAI: Grok Build 0.1,1,2,1.25,
+xiaomi/mimo-v2-flash,Xiaomi: MiMo-V2-Flash,0.1,0.3,0.15,30.3
+xiaomi/mimo-v2-omni,Xiaomi: MiMo-V2-Omni,0.4,2,0.8,43.4
+xiaomi/mimo-v2-pro,Xiaomi: MiMo-V2-Pro,1,3,1.5,49.2
+xiaomi/mimo-v2.5,Xiaomi: MiMo-V2.5,0.4,2,0.8,
+xiaomi/mimo-v2.5-pro,Xiaomi: MiMo-V2.5-Pro,1,3,1.5,53.8
+z-ai/glm-4-32b,Z.ai: GLM 4 32B ,0.1,0.1,0.1,
+z-ai/glm-4.5,Z.ai: GLM 4.5,0.6,2.2,1,26.4
+z-ai/glm-4.5-air,Z.ai: GLM 4.5 Air,0.13,0.85,0.31,23.2
+z-ai/glm-4.5-air:free,Z.ai: GLM 4.5 Air (free),0,0,0,
+z-ai/glm-4.5v,Z.ai: GLM 4.5V,0.6,1.8,0.9,12.7
+z-ai/glm-4.6,Z.ai: GLM 4.6,0.43,1.74,0.7575,30.2
+z-ai/glm-4.6v,Z.ai: GLM 4.6V,0.3,0.9,0.45,17.1
+z-ai/glm-4.7,Z.ai: GLM 4.7,0.4,1.75,0.7375,42.1
+z-ai/glm-4.7-flash,Z.ai: GLM 4.7 Flash,0.06,0.4,0.145,30.1
+z-ai/glm-5,Z.ai: GLM 5,0.6,1.92,0.93,49.8
+z-ai/glm-5-turbo,Z.ai: GLM 5 Turbo,1.2,4,1.9,46.8
+z-ai/glm-5.1,Z.ai: GLM 5.1,0.98,3.08,1.505,51.4
+z-ai/glm-5v-turbo,Z.ai: GLM 5V Turbo,1.2,4,1.9,42.9
+~anthropic/claude-haiku-latest,Anthropic Claude Haiku Latest,1,5,2,
+~anthropic/claude-opus-latest,Anthropic: Claude Opus Latest,5,25,10,
+~anthropic/claude-sonnet-latest,Anthropic Claude Sonnet Latest,3,15,6,
+~google/gemini-flash-latest,Google Gemini Flash Latest,1.5,9,3.375,
+~google/gemini-pro-latest,Google Gemini Pro Latest,2,12,4.5,
+~moonshotai/kimi-latest,MoonshotAI Kimi Latest,0.73,3.49,1.42,
+~openai/gpt-latest,OpenAI GPT Latest,5,30,11.25,
+~openai/gpt-mini-latest,OpenAI GPT Mini Latest,0.75,4.5,1.6875,

@@ -14,6 +14,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 PRICES_CSV = os.path.join(DATA_DIR, "openrouter-prices.csv")
 AA_SCORES_CSV = os.path.join(DATA_DIR, "scores-artificialanalysis.csv")
 ID_MAP_CSV = os.path.join(DATA_DIR, "model-id-map.csv")
+PRICE_VS_QUALITY_CSV = os.path.join(DATA_DIR, "price-vs-quality.csv")
 
 
 def _today():
@@ -62,6 +63,25 @@ def cmd_suggest_map(_args):
     print("\nReview, then add the correct lines to", ID_MAP_CSV)
 
 
+def cmd_join(_args):
+    prices = _read_rows(PRICES_CSV)
+    scores = _read_rows(AA_SCORES_CSV)
+    id_map = _read_rows(ID_MAP_CSV)
+    rows = join.build_price_vs_quality(prices, scores, id_map)
+    csvio.write_csv(
+        PRICE_VS_QUALITY_CSV, join.JOIN_FIELDNAMES, rows,
+        sort_key=lambda r: r["openrouter_id"],
+    )
+    mapped = sum(1 for r in rows if r["aa_intelligence_index"])
+    print(f"Wrote {len(rows)} rows ({mapped} with an intelligence score) to {PRICE_VS_QUALITY_CSV}")
+
+
+def cmd_all(args):
+    cmd_fetch_prices(args)
+    cmd_fetch_scores(args)
+    cmd_join(args)
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="pricetrack")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -73,6 +93,12 @@ def build_parser():
     )
     sub.add_parser("suggest-map", help="suggest id-map entries (review by hand)").set_defaults(
         func=cmd_suggest_map
+    )
+    sub.add_parser("join", help="join prices + scores via id-map").set_defaults(
+        func=cmd_join
+    )
+    sub.add_parser("all", help="fetch-prices, fetch-scores, then join").set_defaults(
+        func=cmd_all
     )
     return parser
 
