@@ -3,15 +3,17 @@
 Run from the repo root: python -m pricing.pricetrack <command>
 """
 import argparse
+import csv
 import datetime
 import os
 
-from pricing import csvio
+from pricing import csvio, join
 from pricing.sources import artificialanalysis, openrouter
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 PRICES_CSV = os.path.join(DATA_DIR, "openrouter-prices.csv")
 AA_SCORES_CSV = os.path.join(DATA_DIR, "scores-artificialanalysis.csv")
+ID_MAP_CSV = os.path.join(DATA_DIR, "model-id-map.csv")
 
 
 def _today():
@@ -39,6 +41,27 @@ def cmd_fetch_scores(_args):
     print(f"Wrote {len(rows)} score rows to {AA_SCORES_CSV}")
 
 
+def _read_rows(path):
+    if not os.path.exists(path):
+        return []
+    with open(path, newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
+def cmd_suggest_map(_args):
+    prices = _read_rows(PRICES_CSV)
+    scores = _read_rows(AA_SCORES_CSV)
+    existing = _read_rows(ID_MAP_CSV)
+    aa_slugs = sorted({s["source_model_name"] for s in scores})
+    mapped = {m["openrouter_id"] for m in existing if m.get("aa_slug")}
+    suggestions = join.suggest_map(prices, aa_slugs, mapped)
+    matched = [s for s in suggestions if s["suggested_aa_slug"]]
+    print(f"{len(matched)} suggested matches (of {len(suggestions)} unmapped):")
+    for s in matched:
+        print(f"  {s['openrouter_id']},{s['suggested_aa_slug']}    # {s['name']}")
+    print("\nReview, then add the correct lines to", ID_MAP_CSV)
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="pricetrack")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -47,6 +70,9 @@ def build_parser():
     )
     sub.add_parser("fetch-scores", help="fetch Artificial Analysis scores").set_defaults(
         func=cmd_fetch_scores
+    )
+    sub.add_parser("suggest-map", help="suggest id-map entries (review by hand)").set_defaults(
+        func=cmd_suggest_map
     )
     return parser
 
