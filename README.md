@@ -15,7 +15,10 @@ graph TD
     subgraph Arch[Arch Workstation - 7900 XTX]
         H[Hermes Agent<br/>single main model]
         OA[Ollama :11434<br/>qwen3:4b auxiliary model]
+        TG[Telegram bot<br/>hermes-gateway.service]
     end
+    TEL[Telegram<br/>your phone] -->|long polling| TG
+    TG --> H
     subgraph NASbox[NAS - Ugreen DXP8800, TrueNAS]
         L[LiteLLM Proxy :4000<br/>OpenAI-compatible<br/>routing + budget cap + logging]
         LF[(Langfuse v3 :3000<br/>per-request traces)]
@@ -43,6 +46,7 @@ graph TD
 | Component | Location | Role |
 |---|---|---|
 | Hermes Agent | Arch workstation | Agent brain: skills, memory, email gateway. Single main model → the gateway. |
+| Telegram bot | Arch workstation | Chat with the agent (full tool access) from your phone. Hermes messaging gateway + Telegram (long polling, LAN-only-friendly), run as the persistent `hermes-gateway.service`. Reachable while the workstation is awake — see [runbook](docs/runbook.md#telegram-bot--hermes-messaging-gateway-arch). |
 | LiteLLM Proxy | NAS (`10.63.0.2:4000`) | OpenAI-compatible gateway: routing, **€100/mo** budget cap, token cap, logging. Dockge stack on TrueNAS. Routes are DB-backed (`store_model_in_db`) — swap a route's model live in the UI, no redeploy; git-tracked seed at `nas/models.seed.json`. |
 | Ollama | Mac M2 Max (`:11434`) | One ~24 GB agentic model — the `private` route (privacy / €0 / bulk); also runs the weekly `curator` aux task. Listens on the LAN for the NAS gateway. |
 | Ollama | Arch workstation (`:11434`) | Local `qwen3:4b-instruct-2507` — the `aux-local` route for Hermes' hot-path aux tasks (titles, profiles, Kanban specs). On-device, €0. (`compression` routes to cloud `main`: its window must ≥ the main model's — see runbook.) |

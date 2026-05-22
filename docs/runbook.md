@@ -180,6 +180,43 @@ Replace `YOUR-ADMIN-PW` with the `GF_SECURITY_ADMIN_PASSWORD` from the metrics s
 - Pin email triage to `private` so sensitive inbox content stays on-device even though the brain is cloud.
 - Config backups: `~/.hermes/config.yaml.bak-*`.
 
+## Telegram bot / Hermes messaging gateway (Arch)
+
+Talk to the agent from your phone. The Telegram bot is the Hermes **messaging
+gateway** (`hermes gateway`) with the Telegram platform connected, running as a
+persistent **systemd user service** on Arch. Why it's set up this way (user vs
+system service, linger, polling vs webhook, always-on vs the Mac):
+[`journal/2026-05-22-telegram-gateway-permanent.md`](journal/2026-05-22-telegram-gateway-permanent.md).
+
+- **Service:** `hermes-gateway.service` (user unit at `~/.config/systemd/user/`),
+  `enabled` (auto-starts on boot), `Linger=yes` (survives logout / boot-before-login).
+- **Trigger mode:** **long polling** (outbound only) — works LAN-only, no public
+  URL. Setting `TELEGRAM_WEBHOOK_URL` in `~/.hermes/.env` would switch to webhooks
+  (don't, unless you add public exposure).
+- **Config:** platform tokens/allow-list in `~/.hermes/.env` (`TELEGRAM_BOT_TOKEN`,
+  `TELEGRAM_ALLOWED_USERS`, `TELEGRAM_HOME_CHANNEL`); behaviour under `telegram:`
+  in `~/.hermes/config.yaml`. Same `~/.hermes` brain/model routing as the CLI agent.
+
+```bash
+hermes gateway status                          # running? linger on?
+hermes gateway start | stop | restart          # control the service
+hermes gateway install                         # (re)install the user service (also enables linger)
+hermes gateway uninstall                        # remove it
+journalctl --user -u hermes-gateway -f         # live logs
+tail -f ~/.hermes/logs/gateway.log             # gateway-specific log (Telegram connect lines land here)
+```
+
+- **Verify it's listening:** `~/.hermes/logs/gateway.log` should show
+  `[Telegram] Connected to Telegram (polling mode)` and `✓ telegram connected`.
+  End-to-end check: message the bot and confirm a reply.
+- **Reachability gotcha (the big one):** the bot only answers while the
+  workstation is **awake**. A Telegram message can't wake a suspended machine
+  (polling is outbound; WoL can't be triggered from the internet). To stay
+  reachable 24/7 the workstation is kept always-on — sleep targets masked
+  (`sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target`)
+  and KDE → Power Management → "Suspend session: Never". If the bot goes quiet,
+  first check the machine didn't sleep, then `hermes gateway status`.
+
 ## Prefix-cache hygiene (keep `private` fast)
 
 - The local model has **one KV slot** (`OLLAMA_NUM_PARALLEL=1`). Any call that lands on it with a different prompt **evicts** the cached agent prefix, forcing the next agent turn to re-ingest the full ~16k context cold (~2 min). The big lever for `private` speed is keeping that slot holding the agent's stable prefix.
