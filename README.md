@@ -6,7 +6,7 @@ A hybrid AI-agent infrastructure with a **fast cloud brain** for everyday speed,
 
 ## The idea
 
-[Hermes Agent](https://hermes-agent.nousresearch.com) runs on the Arch Linux workstation, but all model inference is offloaded — the heavy `private` model to a headless **Mac M2 Max (32 GB)**. A **LiteLLM gateway** on the **NAS** (Ugreen DXP8800 Plus, TrueNAS) makes a fast cloud model (**GPT-5-mini**) the agent's default brain for speed, drops to the **local Ollama model on the Mac** only when privacy or €0 is worth its latency, and escalates to a **frontier model** (GPT-5) for heavy research. Hosting the gateway on the always-on services NAS (alongside Langfuse for observability) frees the workstation GPU, keeps a hard monthly cap on cloud spend, and keeps sensitive workflows (email triage) on-device.
+[Hermes Agent](https://hermes-agent.nousresearch.com) runs on the Arch Linux workstation, but all model inference is offloaded — the heavy `private` model to a headless **Mac M2 Max (32 GB)**. A **LiteLLM gateway** on the **NAS** (Ugreen DXP8800 Plus, TrueNAS) makes a fast cloud model (**GPT-5-mini**) the agent's default brain for speed, drops to the **local Ollama model on the Mac** only when privacy or €0 is worth its latency, and escalates to a **frontier model** (GPT-5) for heavy research. Hosting the gateway on the always-on services NAS (alongside Langfuse for per-request traces and Grafana for usage/cost time-series) frees the workstation GPU, keeps a hard monthly cap on cloud spend, and keeps sensitive workflows (email triage) on-device.
 
 ## Architecture
 
@@ -19,7 +19,9 @@ graph TD
     subgraph NASbox[NAS - Ugreen DXP8800, TrueNAS]
         L[LiteLLM Proxy :4000<br/>OpenAI-compatible<br/>routing + budget cap + logging]
         LF[(Langfuse v3 :3000<br/>per-request traces)]
+        GR[(Grafana :3001<br/>usage/cost time-series)]
         L -. logs/traces .-> LF
+        L -. spend logs .-> GR
     end
     subgraph Mac[Mac M2 Max - headless, no-sleep]
         O[Ollama :11434<br/>one ~24GB agentic model]
@@ -43,7 +45,8 @@ graph TD
 | Ollama | Mac M2 Max (`:11434`) | One ~24 GB agentic model — the `private` route (privacy / €0 / bulk); also runs the weekly `curator` aux task. Listens on the LAN for the NAS gateway. |
 | Ollama | Arch workstation (`:11434`) | Local `qwen3:4b-instruct-2507` — the `aux-local` route for Hermes' hot-path aux tasks (titles, profiles, Kanban specs). On-device, €0. (`compression` routes to cloud `main`: its window must ≥ the main model's — see runbook.) |
 | OpenRouter | Cloud | `main` (GPT-5-mini default brain) + `deep`/`deep-fallback` (frontier research). |
-| Langfuse v3 | NAS (`10.63.0.2:3000`) | Per-request traces: prompt, response, tokens, cost. Primary observability view. |
+| Langfuse v3 | NAS (`10.63.0.2:3000`) | Per-request traces: prompt, response, tokens, cost. Primary observability view for qualitative drill-down. |
+| Grafana | NAS (`10.63.0.2:3001`) | Usage/cost time-series: gateway spend vs. $100 cap and local-vs-cloud split (reads `LiteLLM_SpendLogs` via read-only Postgres role); Claude Code subscription token/cost via OTel. Quantitative complement to Langfuse traces. |
 | LiteLLM dashboard | NAS (`:4000/ui`) | Quick spend / latency fallback view; co-located with the gateway. |
 
 ## How routing works
@@ -67,7 +70,8 @@ The routing layer (LiteLLM) is the centerpiece and ships first.
 1. **Done (routes redesigned).** Routing in place: Mac prep + Ollama; LiteLLM gateway with role-based routes — `main` (GPT-5-mini brain), `private` (local), `deep`/`deep-fallback` (frontier) — €100/mo split cap, token cap, dashboard; wire Hermes (default `main`, `/model deep`/`/model private`).
 2. **Script verified; Hermes integration pending.** Triage advisor skill (recommend / local-judge) — see [runbook § Triage advisor](docs/runbook.md#triage-advisor-phase-2).
 3. **Done (verified live 2026-05-22).** Langfuse v3 on the NAS — per-request traces (prompt, response, tokens, cost) at `http://10.63.0.2:3000`; gateway ships them via async `success_callback`. End-to-end trace round-trip confirmed.
-4. *(Deferred)* Presidio anonymization + GDPR hardening — treated as risk-reduction, never a compliance guarantee.
+4. **Done (2026-05-22).** Grafana usage/cost metrics on the NAS — time-series spend vs. the $100 cap at `http://10.63.0.2:3001`; gateway data from `LiteLLM_SpendLogs` (Postgres, read-only `grafana_ro` role); Claude Code subscription data via OTel collector (`arch/claude-code-otel.sh` → `:4318` → Prometheus → Grafana). Builds the accruing cost history needed for the talk.
+5. *(Deferred)* Presidio anonymization + GDPR hardening — treated as risk-reduction, never a compliance guarantee.
 
 ## Repository layout
 
