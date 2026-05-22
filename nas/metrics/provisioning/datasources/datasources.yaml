@@ -1,0 +1,23 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+
+  - name: LiteLLM Postgres (read-only)
+    uid: litellm-pg
+    type: postgres
+    access: proxy
+    # Reached over the gateway stack's external Docker network (joined in docker-compose.yml).
+    url: litellm-db:5432
+    database: litellm
+    user: grafana_ro
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1600
+    secureJsonData:
+      password: $GRAFANA_DB_RO_PASSWORD
