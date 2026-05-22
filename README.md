@@ -20,8 +20,10 @@ graph TD
         L[LiteLLM Proxy :4000<br/>OpenAI-compatible<br/>routing + budget cap + logging]
         LF[(Langfuse v3 :3000<br/>per-request traces)]
         GR[(Grafana :3001<br/>usage/cost time-series)]
+        N8[n8n :30109<br/>workflow automation]
         L -. logs/traces .-> LF
         L -. spend logs .-> GR
+        N8 -->|OpenAI /v1| L
     end
     subgraph Mac[Mac M2 Max - headless, no-sleep]
         O[Ollama :11434<br/>one ~24GB agentic model]
@@ -48,6 +50,7 @@ graph TD
 | Langfuse v3 | NAS (`10.63.0.2:3000`) | Per-request traces: prompt, response, tokens, cost. Primary observability view for qualitative drill-down. |
 | Grafana | NAS (`10.63.0.2:3001`) | Usage/cost time-series: gateway spend vs. $100 cap and local-vs-cloud split (reads `LiteLLM_SpendLogs` via read-only Postgres role); Claude Code subscription token/cost via OTel. Quantitative complement to Langfuse traces. |
 | LiteLLM dashboard | NAS (`:4000/ui`) | Quick spend / latency fallback view; co-located with the gateway. |
+| n8n | NAS (`10.63.0.2:30109`) | Workflow automation. TrueNAS community/TrueCharts app (the one service not on Dockge). All LLM calls go through the gateway, so they're traced and €100-capped automatically. Workflows built in-UI. |
 
 ## How routing works
 
@@ -71,14 +74,15 @@ The routing layer (LiteLLM) is the centerpiece and ships first.
 2. **Script verified; Hermes integration pending.** Triage advisor skill (recommend / local-judge) — see [runbook § Triage advisor](docs/runbook.md#triage-advisor-phase-2).
 3. **Done (verified live 2026-05-22).** Langfuse v3 on the NAS — per-request traces (prompt, response, tokens, cost) at `http://10.63.0.2:3000`; gateway ships them via async `success_callback`. End-to-end trace round-trip confirmed.
 4. **Done (2026-05-22).** Grafana usage/cost metrics on the NAS — time-series spend vs. the $100 cap at `http://10.63.0.2:3001`; gateway data from `LiteLLM_SpendLogs` (Postgres, read-only `grafana_ro` role); Claude Code subscription data via OTel collector (`arch/claude-code-otel.sh` → `:4318` → Prometheus → Grafana). Builds the accruing cost history needed for the talk.
-5. *(Deferred)* Presidio anonymization + GDPR hardening — treated as risk-reduction, never a compliance guarantee.
+5. **Done (2026-05-22).** n8n on the NAS — workflow automation host at `http://10.63.0.2:30109` (TrueNAS community app). Gateway round-trip verified; LLM calls trace + cap automatically. Workflows built in-UI; see [`nas/n8n/README.md`](nas/n8n/README.md).
+6. *(Deferred)* Presidio anonymization + GDPR hardening — treated as risk-reduction, never a compliance guarantee.
 
 ## Repository layout
 
 - `docs/superpowers/specs/` — design specs
 - `docs/journal/` — dated decision log (the "why", and the story for a talk)
 - `docs/runbook.md` — how to operate the system
-- **`nas/`** — LiteLLM gateway stack (Dockge/TrueNAS) — the live gateway host.
+- **`nas/`** — NAS service docs (TrueNAS): LiteLLM gateway stack (Dockge), plus `langfuse/`, `metrics/`, and `n8n/` (community app install spec).
 - **`mac/`** — Mac side: Ollama (`private` model); previous gateway stack, kept for rollback.
 - **`arch/`** — Arch side: `aux-local` Ollama + the nftables guard around `:11434`.
 - `CLAUDE.md` — working conventions

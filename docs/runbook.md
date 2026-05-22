@@ -218,6 +218,7 @@ Replace `YOUR-ADMIN-PW` with the `GF_SECURITY_ADMIN_PASSWORD` from the metrics s
 - **First call ~15 s** → cold model load; `keep_alive: -1` keeps it warm afterward.
 - **401 from gateway** → Hermes `api_key` must be the literal master key (`key_env` is not honored on the main `model:` block).
 - **`deep` → 403 `NOT_ENOUGH_BALANCE`** → it's an upstream *provider* error (OpenRouter's own out-of-credit is 402), **not** your key/balance. Isolate with a direct OpenRouter curl forcing `provider: {"order":["<provider>"],"allow_fallbacks":false}`. Fix is provider routing (`ignore`/`only`) or picking a model with reliable providers — this is why `deep` is GPT-5 (first-party OpenAI+Azure) with a Gemini fallback.
+- **`main` answers come from local `qwen` (silent cloud→local fallback)** → a GPT-5-family model rejected the request and the `main → private` fallback served local with a **200 OK, no error**. Most common trigger: `max_tokens < 16` (GPT-5 floors `max_output_tokens` at 16, and reasoning eats the budget) — set clients (n8n nodes etc.) to `max_tokens ≥ 256`. Budget cap is a separate trigger. **Diagnose:** `curl -H "Authorization: Bearer $LITELLM_MASTER_KEY" http://10.63.0.2:4000/health` surfaces per-model `unhealthy_endpoints` with the real upstream error; `/spend/logs` shows per-model spend to rule out the cap. Confirm the served model in the Langfuse trace's `Model` field.
 
 ## Triage advisor (Phase 2)
 - Skill source: `hermes/skills/triage-advisor/` (repo); deployed to `~/.hermes/skills/triage-advisor/`.
@@ -239,3 +240,17 @@ git add pricing/data && git commit -m "data(pricing): refresh snapshot $(date +%
 ```
 
 The commit diff is the price-change record. See [`pricing/README.md`](pricing/README.md) for details.
+
+## n8n (workflow automation)
+
+- **Where:** TrueNAS **community/TrueCharts app** (not Dockge), UI at
+  `http://10.63.0.2:30109` (LAN-only). Data on a NAS pool dataset; TrueNAS
+  snapshots are the backup. Full install spec: [`../nas/n8n/README.md`](../nas/n8n/README.md).
+- **Start/stop/update:** from the TrueNAS **Apps** page, not Dockge.
+- **Gateway credential:** n8n OpenAI credential → base URL `http://10.63.0.2:4000`,
+  API key = gateway master key. Model field = a route name (`main`/`private`/`deep`).
+  All calls trace in Langfuse and count against the €100 cap automatically.
+- **`N8N_ENCRYPTION_KEY`** must persist across redeploys (set to a known personal
+  password, recorded out-of-band) — losing it orphans every stored credential.
+- **Gotcha:** set `max_tokens ≥ 256` in LLM nodes, or a GPT-5 route silently falls
+  back to local `qwen` (see § Common gotchas).
