@@ -128,12 +128,26 @@ beats the larger tier too. Supporting panels break token volume into all four ty
 are priced very differently and would otherwise wreck the estimate) and show usage by
 model, plus per-range tables.
 
-A subtle data-shape lesson made this necessary, not just nicer: every Claude Code
-session carries a distinct `session_id` label, so each session is its **own**
-Prometheus series that goes stale ~5 minutes after it ends. A naïve
-`sum(claude_code_cost_usage_USD_total)` therefore reads ≈0 most of the time. Everything
-uses `increase(metric[window])` instead, which sums correctly across the per-session
-series.
+A subtle data-shape lesson cost a debugging round and is worth recording. Every
+Claude Code session carries a distinct `session_id` label, so each session is its
+**own** Prometheus series. Two consequences bit in sequence:
+
+1. A naïve `sum(claude_code_cost_usage_USD_total)` reads ≈0 most of the time, because
+   each per-session series goes **stale** ~5 minutes after the session ends and drops
+   out of the instantaneous sum.
+2. The obvious fix — `increase(metric[window])` — *also* read 0. A short `claude -p`
+   run exports its cumulative total essentially **once**, so Prometheus only ever sees
+   that series at its final, constant value and never observes the climb from zero.
+   `increase()` = last − first = 0 on a flat series. (The tell on the dashboard: cost
+   and tokens showed 0 while the *session count* — which counts series, not their
+   increase — correctly showed 1.)
+
+The correct aggregation for this bursty, one-series-per-session shape is
+`sum(max_over_time(metric[window]))`: take each session series' value (its final
+cumulative total) and sum across all sessions in the window. This is the opposite of
+the usual Prometheus counter instinct (`rate`/`increase`), and it only became obvious
+against real data — a good reminder that the metric's *delivery pattern*, not just its
+type, decides the query.
 
 This break-even view starts accruing real history from the day the stack is deployed.
 The longer it runs, the more convincing it is for the talk.
