@@ -108,18 +108,35 @@ This pattern means the live gateway stack needs no modification to support the
 metrics layer. The metrics stack is a pure add-on observer. Grafana cannot write to
 the billing database by construction (the role has no `INSERT` or `UPDATE`).
 
-## The money-shot panel
+## The headline: subscription break-even, not a cross-workload "vs"
 
-The point of the whole exercise is one mixed-datasource panel: Claude Code estimated
-cost (flat-rate Max subscription, estimated from token volume via the OTel series
-`claude_code_cost_usage_USD_total`) alongside gateway actual cost (pay-as-you-go API
-spend from `LiteLLM_SpendLogs`). This is the "what would this have cost without the
-subscription?" comparison — the number that answers whether the hybrid setup is
-actually saving money relative to pure pay-as-you-go, and whether the Max
-subscription is earning its keep.
+The original design proposed a single mixed-datasource panel plotting Claude Code
+estimated cost against gateway actual cost. On first contact with the live data we
+**dropped it** — it compared two unrelated workloads (Claude Code coding sessions vs
+the Hermes gateway's routes) and pitted a *fixed* subscription against *per-request*
+spend, so the "vs" answered nothing. The confusion was the tell.
 
-That panel starts accruing real history from the day the stack is deployed. The
-longer it runs, the more convincing the comparison will be for the talk.
+What the question actually is: *"if I paid pay-as-you-go API prices instead of the
+flat Max subscription, what would my Claude Code usage have cost?"* `claude_code.cost.usage`
+is exactly that shadow price (Anthropic's PAYG estimate for the tokens used). So the
+headline became a **break-even** chart: the trailing-30-day estimated API cost as a
+line, with two horizontal reference lines at the **$100 (Max 5×)** and **$200 (Max 20×)**
+subscription tiers. When the line sits above $100, the last 30 days of usage already
+exceed the cheaper tier's price — the subscription is earning its keep; above $200 it
+beats the larger tier too. Supporting panels break token volume into all four types
+(input / output / cacheRead / cacheCreation — kept separate because cache reads/writes
+are priced very differently and would otherwise wreck the estimate) and show usage by
+model, plus per-range tables.
+
+A subtle data-shape lesson made this necessary, not just nicer: every Claude Code
+session carries a distinct `session_id` label, so each session is its **own**
+Prometheus series that goes stale ~5 minutes after it ends. A naïve
+`sum(claude_code_cost_usage_USD_total)` therefore reads ≈0 most of the time. Everything
+uses `increase(metric[window])` instead, which sums correctly across the per-session
+series.
+
+This break-even view starts accruing real history from the day the stack is deployed.
+The longer it runs, the more convincing it is for the talk.
 
 ## Deferred — not built, only noted
 

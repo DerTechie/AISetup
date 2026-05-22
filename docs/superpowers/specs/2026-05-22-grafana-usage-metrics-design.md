@@ -10,7 +10,7 @@
 Stand up **Grafana** on the NAS to collect and visualize **usage/cost over time**, started **now** so a real historical baseline accrues before the n8n phase and before any talk. Two data sources:
 
 - **Gateway usage/cost** — spend vs the €100 cap, tokens/requests by route, local-vs-cloud split, latency. Sourced from data LiteLLM **already writes** to its Postgres, so dashboards show history from day one.
-- **Claude Code subscription usage** — `claude_code.token.usage` and estimated `claude_code.cost.usage`, so the **"Max-subscription estimated-$ vs gateway API actual-$"** comparison has history by talk time. Requires starting Claude Code's telemetry collection now.
+- **Claude Code subscription usage** — `claude_code.token.usage` and estimated `claude_code.cost.usage`, so the **subscription break-even** view (estimated pay-as-you-go API cost of Claude Code usage vs the flat Max subscription tiers) has history by talk time. Requires starting Claude Code's telemetry collection now.
 
 **Success criteria:**
 - Grafana reachable on the LAN with both data sources healthy.
@@ -99,7 +99,7 @@ Emits `claude_code.token.usage` (exact counts) and `claude_code.cost.usage` (est
 Defined as JSON in the repo, provisioned on boot:
 
 - **Gateway** (Postgres `LiteLLM_SpendLogs`): 30-day total spend vs the **€100 cap** and the `main` $50 / `deep` $35 / `deep-fallback` $15 sub-caps; spend over time; requests & tokens by route; **local (`private`/`aux-local`) vs cloud (`main`/`deep`) split**; latency derived from `startTime`/`endTime`.
-- **Claude Code** (Prometheus): tokens and estimated-$ over time by model; session count. Headline panel: **Claude Code estimated-$ (subscription) vs gateway actual-$ (API)** combining both data sources — the talk money-shot.
+- **Claude Code** (Prometheus): tokens and estimated-$ over time by model; session count. Headline panel: **subscription break-even** — trailing-30d estimated API cost (`claude_code_cost_usage_USD_total`, the PAYG shadow price of the usage) with horizontal reference lines at the **$100 (Max 5×)** and **$200 (Max 20×)** tiers; above a line, that period's usage already exceeds that tier's flat price. Token volume is split into all four types (input/output/cacheRead/cacheCreation), plus per-range by-model/by-type tables. *(Revised during implementation: the originally-proposed "Claude Code estimated-$ vs gateway actual-$" mixed panel was dropped — it compared unrelated workloads and a fixed cost against per-request spend. See the journal.)*
 
 ## 8. Deployment
 
