@@ -924,7 +924,8 @@ def test_build_join_blank_when_unmapped():
     }]
     rows = build_price_vs_quality(prices, [], [])
     assert rows[0]["aa_intelligence_index"] == ""
-    assert rows[0]["blended_usd_per_mtok"] == "4"
+    # (3*2 + 6)/4 = 3
+    assert rows[0]["blended_usd_per_mtok"] == "3"
 
 
 def test_build_join_blank_blend_when_price_missing():
@@ -966,7 +967,8 @@ def _blend(prompt, completion):
     if not prompt or not completion:
         return ""
     value = (Decimal(prompt) * 3 + Decimal(completion)) / 4
-    return f"{value.normalize() + Decimal(0):f}"
+    # `:f` renders plain decimal (no scientific notation); normalize drops trailing zeros.
+    return f"{value.normalize():f}"
 
 
 def build_price_vs_quality(price_rows, score_rows, map_rows):
