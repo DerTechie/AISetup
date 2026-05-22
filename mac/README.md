@@ -11,7 +11,10 @@ moved to the NAS — see [`../docs/journal/2026-05-22-litellm-gateway-to-nas.md`
 | `com.ollama.serve.plist` | `~/Library/LaunchAgents/` | Managed `ollama serve` on `0.0.0.0:11434` (LAN), in the `gui/$UID` domain so it keeps Metal GPU access. Replaces the menubar app's server on this headless box. |
 | `pf-ollama-guard.conf` | `/etc/pf-ollama-guard.conf` | pf ruleset fencing `:11434` to localhost + the NAS (`10.63.0.2`). |
 | `com.ollama.pfguard.plist` | `/Library/LaunchDaemons/` | Enable pf + load the guard at boot (root). |
-| `docker-compose.yml`, `litellm-config.yaml`, `.env.example` | — | **Previous** gateway stack, retained for rollback until the NAS gateway has soaked. Retire afterwards. |
+
+The gateway stack that used to live here (`docker-compose.yml`, `litellm-config.yaml`,
+`.env.example`) was retired on 2026-05-22 when the gateway moved to the NAS; it
+lives in [`../nas/`](../nas/) now (and in git history if you need the old form).
 
 ## Ollama on the LAN (LaunchAgent)
 

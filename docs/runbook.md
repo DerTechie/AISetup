@@ -8,7 +8,7 @@ How to operate the hybrid gateway. See the [design spec](superpowers/specs/2026-
 - **Mac** (`10.63.0.32`): Ollama only — the `private` route model. Headless, no-sleep (`pmset`). Listens on the LAN for the NAS gateway.
 - **Arch** (`10.63.0.29`): Hermes Agent + the `aux-local` Ollama (4B on the 7900 XTX).
 
-> **Gateway moved Mac → NAS (2026-05-22).** Why + the trade-offs: [`journal/2026-05-22-litellm-gateway-to-nas.md`](journal/2026-05-22-litellm-gateway-to-nas.md). The old Mac stack (`mac/`) is retained for rollback until the NAS gateway is verified live, then retired.
+> **Gateway moved Mac → NAS (2026-05-22).** Why + the trade-offs: [`journal/2026-05-22-litellm-gateway-to-nas.md`](journal/2026-05-22-litellm-gateway-to-nas.md). Cutover verified live and the old Mac stack retired the same day; `mac/` is now Ollama-only (the gateway lives in `nas/`).
 
 ## Model routes (through the gateway)
 
@@ -125,7 +125,7 @@ Dashboard: `http://10.63.0.2:4000/ui` (login `UI_USERNAME` / `UI_PASSWORD`).
     aux-local: {context_length: 32768}    # 4B aux tasks
   ```
   This override is checked **before** the probe/cache (`get_model_context_length` step 0b), so it always wins. After changing it, blank `~/.hermes/context_length_cache.yaml` (`context_lengths: {}`) to drop stale probed values.
-- **`private` must serve what it declares.** Declaring 65536 is only safe because the Mac actually loads at 64k — set via `num_ctx: 65536` in the `private` block of `mac/litellm-config.yaml`. Measured footprint: **26 GB / 100% GPU** on the 32 GB Mac with the default f16 KV cache (Qwen3's GQA keeps the KV small), ~6 GB left for the OS — no `q8_0` KV change or `iogpu.wired_limit` bump needed. Verify after a `private` request with `ollama ps` on the Mac (CONTEXT column should read `65536`). 64k is also Hermes' **minimum** for any main-agent model, which `private` is (it's the `main` budget-cap fallback).
+- **`private` must serve what it declares.** Declaring 65536 is only safe because the Mac actually loads at 64k — set via `num_ctx: 65536` in the `private` block of `nas/litellm-config.yaml`. Measured footprint: **26 GB / 100% GPU** on the 32 GB Mac with the default f16 KV cache (Qwen3's GQA keeps the KV small), ~6 GB left for the OS — no `q8_0` KV change or `iogpu.wired_limit` bump needed. Verify after a `private` request with `ollama ps` on the Mac (CONTEXT column should read `65536`). 64k is also Hermes' **minimum** for any main-agent model, which `private` is (it's the `main` budget-cap fallback).
 
 ## Cost control
 
