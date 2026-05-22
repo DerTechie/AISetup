@@ -134,11 +134,16 @@ and show the full picture side by side.
 
 ## Status
 
-**Repo artifacts are done**: the Langfuse v3 compose stack and env template are in
-`nas/langfuse/`, the gateway's `success_callback` wiring is in
-`nas/litellm-config.yaml`, and docs are updated. **The live cutover is not yet
-done and has not been verified.** Completing it requires placing the stack
-directory on a NAS pool path (TrueNAS's system dataset is read-only), starting the
-stack in Dockge, confirming all six containers reach a healthy state, and running
-an end-to-end trace round-trip — a real model call that produces a visible trace in
-the Langfuse web UI. That final step is pending.
+**Done and verified live (2026-05-22).** The Langfuse v3 compose stack and env
+template are in `nas/langfuse/`, the gateway's `success_callback` wiring is in
+`nas/litellm-config.yaml`, and docs are updated. The stack was deployed on a NAS
+pool path via Dockge (headless init provisioned the `gateway` project), the
+gateway was repointed at it, and the end-to-end trace round-trip passed: a real
+`private`-route call through the gateway (`:4000`) produced a visible
+`litellm-acompletion` trace in Langfuse (`:3000`) with the correct prompt
+("…reply with the single word OK"), output (`OK`), and token counts — confirmed
+via `GET /api/public/traces`. Langfuse health returned `200`. Observability is now
+live; the LiteLLM dashboard is demoted to a quick fallback view.
+
+**Deferred next:** n8n on the t640 (its LLM calls will trace for free through the
+same gateway), and the Grafana subscription-vs-API cost dashboard.

@@ -18,7 +18,7 @@ graph TD
     end
     subgraph NASbox[NAS - Ugreen DXP8800, TrueNAS]
         L[LiteLLM Proxy :4000<br/>OpenAI-compatible<br/>routing + budget cap + logging]
-        LF[(Langfuse v3 :3000<br/>per-request traces (pending))]
+        LF[(Langfuse v3 :3000<br/>per-request traces)]
         L -. logs/traces .-> LF
     end
     subgraph Mac[Mac M2 Max - headless, no-sleep]
@@ -43,7 +43,7 @@ graph TD
 | Ollama | Mac M2 Max (`:11434`) | One ~24 GB agentic model — the `private` route (privacy / €0 / bulk); also runs the weekly `curator` aux task. Listens on the LAN for the NAS gateway. |
 | Ollama | Arch workstation (`:11434`) | Local `qwen3:4b-instruct-2507` — the `aux-local` route for Hermes' hot-path aux tasks (titles, profiles, Kanban specs). On-device, €0. (`compression` routes to cloud `main`: its window must ≥ the main model's — see runbook.) |
 | OpenRouter | Cloud | `main` (GPT-5-mini default brain) + `deep`/`deep-fallback` (frontier research). |
-| Langfuse v3 | NAS (`10.63.0.2:3000`) | Per-request traces: prompt, response, tokens, cost. Primary observability view (deploy pending). |
+| Langfuse v3 | NAS (`10.63.0.2:3000`) | Per-request traces: prompt, response, tokens, cost. Primary observability view. |
 | LiteLLM dashboard | NAS (`:4000/ui`) | Quick spend / latency fallback view; co-located with the gateway. |
 
 ## How routing works
@@ -66,7 +66,7 @@ The routing layer (LiteLLM) is the centerpiece and ships first.
 
 1. **Done (routes redesigned).** Routing in place: Mac prep + Ollama; LiteLLM gateway with role-based routes — `main` (GPT-5-mini brain), `private` (local), `deep`/`deep-fallback` (frontier) — €100/mo split cap, token cap, dashboard; wire Hermes (default `main`, `/model deep`/`/model private`).
 2. **Script verified; Hermes integration pending.** Triage advisor skill (recommend / local-judge) — see [runbook § Triage advisor](docs/runbook.md#triage-advisor-phase-2).
-3. **Repo artifacts done; live deploy pending.** Langfuse v3 stack + gateway callback wiring committed; NAS deploy and end-to-end trace round-trip not yet verified. Target UI: `http://10.63.0.2:3000`.
+3. **Done (verified live 2026-05-22).** Langfuse v3 on the NAS — per-request traces (prompt, response, tokens, cost) at `http://10.63.0.2:3000`; gateway ships them via async `success_callback`. End-to-end trace round-trip confirmed.
 4. *(Deferred)* Presidio anonymization + GDPR hardening — treated as risk-reduction, never a compliance guarantee.
 
 ## Repository layout
