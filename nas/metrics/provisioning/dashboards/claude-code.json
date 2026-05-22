@@ -3,74 +3,159 @@
   "uid": "claude-code-usage",
   "schemaVersion": 39,
   "editable": true,
-  "time": { "from": "now-7d", "to": "now" },
+  "time": { "from": "now-30d", "to": "now" },
   "timezone": "browser",
   "panels": [
     {
       "id": 1,
       "type": "stat",
-      "title": "Estimated cost to date (USD)",
-      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "title": "Estimated API cost (30d)",
+      "description": "What this Claude Code usage WOULD have cost at pay-as-you-go API prices. On the flat Max subscription you don't pay this. Red <$100 (subscription dearer than API on Max 5x); orange >=$100 (beats Max 5x); green >=$200 (beats Max 20x).",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "currencyUSD" } },
-      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 100 },
+              { "color": "green", "value": 200 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "targets": [
-        { "refId": "A", "expr": "sum(claude_code_cost_usage_USD_total)" }
+        { "refId": "A", "expr": "sum(increase(claude_code_cost_usage_USD_total[30d]))" }
       ]
     },
     {
       "id": 2,
       "type": "stat",
-      "title": "Sessions",
-      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "title": "Total tokens (30d)",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "targets": [
-        { "refId": "A", "expr": "sum(claude_code_session_count_total)" }
+        { "refId": "A", "expr": "sum(increase(claude_code_token_usage_tokens_total[30d]))" }
       ]
     },
     {
       "id": 3,
-      "type": "timeseries",
-      "title": "Tokens over time by type",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "type": "stat",
+      "title": "Sessions (30d)",
+      "description": "Distinct Claude Code sessions in the last 30 days (counted as distinct session_id series).",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "targets": [
-        { "refId": "A", "legendFormat": "{{type}}", "expr": "sum by (type) (increase(claude_code_token_usage_tokens_total[$__rate_interval]))" }
+        { "refId": "A", "expr": "count(count_over_time(claude_code_session_count_total[30d]))" }
       ]
     },
     {
       "id": 4,
       "type": "timeseries",
-      "title": "Estimated cost over time by model (USD)",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "title": "Break-even: trailing-30d estimated API cost vs subscription tiers",
+      "description": "Each point is the estimated API cost of the trailing 30 days. Above the $100 line, your last-30d API-equivalent usage exceeds the Max 5x price (subscription wins vs that tier); above $200 it also beats Max 20x.",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 4 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "currencyUSD" } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 100 },
+              { "color": "red", "value": 200 }
+            ]
+          }
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
       "targets": [
-        { "refId": "A", "legendFormat": "{{model}}", "expr": "sum by (model) (increase(claude_code_cost_usage_USD_total[$__rate_interval]))" }
+        { "refId": "A", "legendFormat": "Trailing-30d estimated API $", "expr": "sum(increase(claude_code_cost_usage_USD_total[30d]))" }
       ]
     },
     {
       "id": 5,
       "type": "timeseries",
-      "title": "Money-shot: Claude Code estimated-$ (subscription) vs gateway actual-$ (API)",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-      "datasource": { "type": "datasource", "uid": "-- Mixed --" },
-      "fieldConfig": { "defaults": { "unit": "currencyUSD" } },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "legendFormat": "Claude Code estimated $ (subscription)",
-          "expr": "sum(increase(claude_code_cost_usage_USD_total[$__rate_interval]))"
-        },
-        {
-          "refId": "B",
-          "datasource": { "type": "postgres", "uid": "litellm-pg" },
-          "format": "time_series",
-          "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(\"startTime\",'1h'), SUM(spend) AS \"Gateway actual $ (API)\" FROM \"LiteLLM_SpendLogs\" WHERE $__timeFilter(\"startTime\") GROUP BY 1 ORDER BY 1;"
+      "title": "Token volume by type (trend)",
+      "description": "input / output / cacheRead / cacheCreation tokens over time. Cache reads and writes are priced very differently on the API, so they are kept separate for accurate estimation.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "drawStyle": "line", "stacking": { "mode": "normal" }, "fillOpacity": 25 }
         }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{type}}", "expr": "sum by (type) (increase(claude_code_token_usage_tokens_total[$__rate_interval]))" }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Estimated API cost by model (trend)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": { "drawStyle": "line", "fillOpacity": 10 }
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{model}}", "expr": "sum by (model) (increase(claude_code_cost_usage_USD_total[$__rate_interval]))" }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Usage by model (selected time range)",
+      "description": "Totals over whatever range the dashboard time picker is set to. Set the range to a calendar month to read that month's usage.",
+      "gridPos": { "h": 9, "w": 14, "x": 0, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {}, "overrides": [
+        { "matcher": { "id": "byName", "options": "Est. API $" }, "properties": [ { "id": "unit", "value": "currencyUSD" } ] },
+        { "matcher": { "id": "byName", "options": "Tokens" }, "properties": [ { "id": "unit", "value": "short" } ] }
+      ] },
+      "targets": [
+        { "refId": "A", "format": "table", "instant": true, "expr": "sum by (model) (increase(claude_code_cost_usage_USD_total[$__range]))" },
+        { "refId": "B", "format": "table", "instant": true, "expr": "sum by (model) (increase(claude_code_token_usage_tokens_total[$__range]))" }
+      ],
+      "transformations": [
+        { "id": "merge", "options": {} },
+        { "id": "organize", "options": { "excludeByName": { "Time": true }, "renameByName": { "model": "Model", "Value #A": "Est. API $", "Value #B": "Tokens" } } }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Tokens by type (selected time range)",
+      "description": "Token totals by type over the selected range. The cost metric has no per-type label, so estimated $ is shown per model (left), not per type.",
+      "gridPos": { "h": 9, "w": 10, "x": 14, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {}, "overrides": [
+        { "matcher": { "id": "byName", "options": "Tokens" }, "properties": [ { "id": "unit", "value": "short" } ] }
+      ] },
+      "targets": [
+        { "refId": "A", "format": "table", "instant": true, "expr": "sum by (type) (increase(claude_code_token_usage_tokens_total[$__range]))" }
+      ],
+      "transformations": [
+        { "id": "organize", "options": { "excludeByName": { "Time": true }, "renameByName": { "type": "Token type", "Value": "Tokens" } } }
       ]
     }
   ]
