@@ -29,7 +29,7 @@
       },
       "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "targets": [
-        { "refId": "A", "expr": "sum(max_over_time(claude_code_cost_usage_USD_total[30d]))" }
+        { "refId": "A", "instant": true, "expr": "sum(max_over_time(claude_code_cost_usage_USD_total[30d]))" }
       ]
     },
     {
@@ -42,7 +42,7 @@
       "fieldConfig": { "defaults": { "unit": "short" } },
       "options": { "colorMode": "none", "graphMode": "none", "textMode": "value_and_name", "reduceOptions": { "calcs": ["lastNotNull"], "values": false } },
       "targets": [
-        { "refId": "A", "legendFormat": "{{type}}", "expr": "sum by (type) (max_over_time(claude_code_token_usage_tokens_total[30d]))" }
+        { "refId": "A", "instant": true, "legendFormat": "{{type}}", "expr": "sum by (type) (max_over_time(claude_code_token_usage_tokens_total[30d]))" }
       ]
     },
     {
@@ -55,7 +55,7 @@
       "fieldConfig": { "defaults": { "unit": "short" } },
       "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "targets": [
-        { "refId": "A", "expr": "count(count_over_time(claude_code_session_count_total[30d]))" }
+        { "refId": "A", "instant": true, "expr": "count(count_over_time(claude_code_session_count_total[30d]))" }
       ]
     },
     {
