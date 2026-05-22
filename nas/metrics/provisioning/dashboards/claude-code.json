@@ -5,6 +5,7 @@
   "editable": true,
   "time": { "from": "now-30d", "to": "now" },
   "timezone": "browser",
+  "refresh": "1m",
   "panels": [
     {
       "id": 1,
@@ -34,13 +35,14 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "Total tokens (30d)",
+      "title": "Tokens by type (30d)",
+      "description": "input / output / cacheRead / cacheCreation token totals over the last 30 days. Input and output are the figures that matter most for an API-cost estimate; cache reads/writes are priced differently again.",
       "gridPos": { "h": 4, "w": 8, "x": 8, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "short" } },
-      "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "options": { "colorMode": "none", "graphMode": "none", "textMode": "value_and_name", "reduceOptions": { "calcs": ["lastNotNull"], "values": false } },
       "targets": [
-        { "refId": "A", "expr": "sum(increase(claude_code_token_usage_tokens_total[30d]))" }
+        { "refId": "A", "legendFormat": "{{type}}", "expr": "sum by (type) (increase(claude_code_token_usage_tokens_total[30d]))" }
       ]
     },
     {
@@ -69,6 +71,8 @@
           "custom": {
             "drawStyle": "line",
             "fillOpacity": 10,
+            "axisSoftMin": 0,
+            "axisSoftMax": 220,
             "thresholdsStyle": { "mode": "line" }
           },
           "thresholds": {
