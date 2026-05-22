@@ -74,10 +74,13 @@ it at 64k.
 > app relaunches and fights the agent for `:11434`. Until then the agent is live
 > but reboot persistence is not guaranteed.
 
-**Still open — fence it to the NAS.** The API is unauthenticated and now LAN-wide.
-Mirror the Arch guard: macOS uses `pf`, not nftables — scope `:11434` to
-`127.0.0.1` + `10.63.0.2`, drop other LAN sources, persist via a `LaunchDaemon`.
-Not yet scripted in the repo; until it is, any LAN host can use the model.
+**Fence it to the NAS (pf).** The API is unauthenticated, so `:11434` is scoped to
+localhost + the NAS (`10.63.0.2`); other LAN sources are dropped. macOS uses `pf`,
+not nftables — repo files [`../mac/pf-ollama-guard.conf`](../mac/pf-ollama-guard.conf)
+(ruleset) + [`../mac/com.ollama.pfguard.plist`](../mac/com.ollama.pfguard.plist)
+(boot-time `LaunchDaemon`). Install/verify in [`../mac/README.md`](../mac/README.md).
+Quick check: from a non-allowed LAN host `:11434` times out; from the NAS the
+`private` route still works.
 
 ## Verify health
 

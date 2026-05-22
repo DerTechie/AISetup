@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  LaunchDaemon (system domain, root) that enables pf and loads the Ollama guard
+  ruleset at boot, fencing :11434 to localhost + the NAS gateway (10.63.0.2).
+  Packet filtering needs root, so this is a LaunchDaemon, not a LaunchAgent.
+
+  Install (see mac/README.md):
+    sudo install -m644 mac/pf-ollama-guard.conf /etc/pf-ollama-guard.conf
+    sudo install -m644 -o root -g wheel mac/com.ollama.pfguard.plist \
+         /Library/LaunchDaemons/com.ollama.pfguard.plist
+    sudo launchctl bootstrap system /Library/LaunchDaemons/com.ollama.pfguard.plist
+    sudo pfctl -E -f /etc/pf-ollama-guard.conf      # apply now without a reboot
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.ollama.pfguard</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/sbin/pfctl</string>
+    <string>-E</string>
+    <string>-f</string>
+    <string>/etc/pf-ollama-guard.conf</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/var/log/ollama-pfguard.log</string>
+  <key>StandardErrorPath</key>
+  <string>/var/log/ollama-pfguard.log</string>
+</dict>
+</plist>
