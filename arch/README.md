@@ -2,15 +2,16 @@
 
 Config for the Arch Linux workstation side of the hybrid setup: the local
 **auxiliary** Ollama model on the RX 7900 XTX (the `aux-local` route) and the
-firewall fence around it. See the design spec:
+firewall fence around it. The gateway that calls this Ollama runs on the **NAS**
+(`10.63.0.2`), so the guard scopes `:11434` to the NAS — not the Mac. See the design spec:
 [`../docs/superpowers/specs/2026-05-21-local-aux-models-design.md`](../docs/superpowers/specs/2026-05-21-local-aux-models-design.md).
 
 ## Files
 
 | File | Installed to | Purpose |
 |---|---|---|
-| `ollama-lan.conf` | `/etc/systemd/system/ollama.service.d/lan.conf` | Make Ollama listen on the LAN so the Mac gateway can reach it. |
-| `nftables-ollama-guard.nft` | `/etc/nftables-ollama-guard.nft` | Restrict `:11434` to localhost + the Mac gateway. |
+| `ollama-lan.conf` | `/etc/systemd/system/ollama.service.d/lan.conf` | Make Ollama listen on the LAN so the NAS gateway can reach it. |
+| `nftables-ollama-guard.nft` | `/etc/nftables-ollama-guard.nft` | Restrict `:11434` to localhost + the NAS gateway (`10.63.0.2`). |
 | `ollama-guard.service` | `/etc/systemd/system/ollama-guard.service` | Load the nft guard at boot (it is otherwise runtime-only). |
 
 ## Install

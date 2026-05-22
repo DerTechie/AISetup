@@ -6,7 +6,7 @@ A hybrid AI-agent infrastructure with a **fast cloud brain** for everyday speed,
 
 ## The idea
 
-[Hermes Agent](https://hermes-agent.nousresearch.com) runs on the Arch Linux workstation, but all model inference is offloaded to a headless **Mac M2 Max (32 GB)**. A **LiteLLM gateway** on the Mac makes a fast cloud model (**GPT-5-mini**) the agent's default brain for speed, drops to a **local Ollama model** only when privacy or €0 is worth its latency, and escalates to a **frontier model** (GPT-5) for heavy research. This frees the workstation GPU, keeps a hard monthly cap on cloud spend, and keeps sensitive workflows (email triage) on-device.
+[Hermes Agent](https://hermes-agent.nousresearch.com) runs on the Arch Linux workstation, but all model inference is offloaded — the heavy `private` model to a headless **Mac M2 Max (32 GB)**. A **LiteLLM gateway** on the **NAS** (Ugreen DXP8800 Plus, TrueNAS) makes a fast cloud model (**GPT-5-mini**) the agent's default brain for speed, drops to the **local Ollama model on the Mac** only when privacy or €0 is worth its latency, and escalates to a **frontier model** (GPT-5) for heavy research. Hosting the gateway on the always-on services NAS (alongside future Langfuse) frees the workstation GPU, keeps a hard monthly cap on cloud spend, and keeps sensitive workflows (email triage) on-device.
 
 ## Architecture
 
@@ -16,20 +16,22 @@ graph TD
         H[Hermes Agent<br/>single main model]
         OA[Ollama :11434<br/>qwen3:4b auxiliary model]
     end
-    subgraph Mac[Mac M2 Max - headless, no-sleep]
+    subgraph NASbox[NAS - Ugreen DXP8800, TrueNAS]
         L[LiteLLM Proxy :4000<br/>OpenAI-compatible<br/>routing + budget cap + logging]
+        LF[(Langfuse - later)]
+        L -. logs/traces .-> LF
+    end
+    subgraph Mac[Mac M2 Max - headless, no-sleep]
         O[Ollama :11434<br/>one ~24GB agentic model]
-        L -->|model: private| O
     end
     subgraph Cloud[Cloud]
         OR[OpenRouter<br/>deep reasoning / large context]
     end
-    NAS[(NAS - Langfuse, later)]
 
     H -->|OpenAI /v1| L
+    L -->|model: private| O
     L -->|model: aux-local| OA
     L -->|model: deep / main| OR
-    L -. logs/traces .-> NAS
 ```
 
 ## Components
@@ -37,11 +39,11 @@ graph TD
 | Component | Location | Role |
 |---|---|---|
 | Hermes Agent | Arch workstation | Agent brain: skills, memory, email gateway. Single main model → the gateway. |
-| LiteLLM Proxy | Mac M2 Max (`:4000`) | OpenAI-compatible gateway: routing, **€100/mo** budget cap, token cap, logging. |
-| Ollama | Mac M2 Max (`:11434`) | One ~24 GB agentic model — the `private` route (privacy / €0 / bulk); also runs the weekly `curator` aux task. |
+| LiteLLM Proxy | NAS (`10.63.0.2:4000`) | OpenAI-compatible gateway: routing, **€100/mo** budget cap, token cap, logging. Dockge stack on TrueNAS. |
+| Ollama | Mac M2 Max (`:11434`) | One ~24 GB agentic model — the `private` route (privacy / €0 / bulk); also runs the weekly `curator` aux task. Listens on the LAN for the NAS gateway. |
 | Ollama | Arch workstation (`:11434`) | Local `qwen3:4b-instruct-2507` — the `aux-local` route for Hermes' hot-path aux tasks (titles, profiles, Kanban specs). On-device, €0. (`compression` routes to cloud `main`: its window must ≥ the main model's — see runbook.) |
 | OpenRouter | Cloud | `main` (GPT-5-mini default brain) + `deep`/`deep-fallback` (frontier research). |
-| Observability | Mac → NAS | LiteLLM dashboard (`:4000/ui`) now; Langfuse on the NAS later. |
+| Observability | NAS | LiteLLM dashboard (`:4000/ui`) now; Langfuse on the NAS later (co-located with the gateway). |
 
 ## How routing works
 
@@ -71,5 +73,8 @@ The routing layer (LiteLLM) is the centerpiece and ships first.
 - `docs/superpowers/specs/` — design specs
 - `docs/journal/` — dated decision log (the "why", and the story for a talk)
 - `docs/runbook.md` — how to operate the system
+- **`nas/`** — LiteLLM gateway stack (Dockge/TrueNAS) — the live gateway host.
+- **`mac/`** — Mac side: Ollama (`private` model); previous gateway stack, kept for rollback.
+- **`arch/`** — Arch side: `aux-local` Ollama + the nftables guard around `:11434`.
 - `CLAUDE.md` — working conventions
 - **`pricing/`** — OpenRouter price + Artificial Analysis quality tracker; snapshots to committed CSVs for accurate, dated cost comparisons (see [`pricing/README.md`](pricing/README.md)).

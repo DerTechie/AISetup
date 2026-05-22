@@ -4,9 +4,11 @@ How to operate the hybrid gateway. See the [design spec](superpowers/specs/2026-
 
 ## Hosts
 
-- **Mac** (`10.63.0.32`): Ollama + LiteLLM gateway (Docker Desktop). Headless, no-sleep (`pmset`).
-- **Arch**: Hermes Agent.
-- **NAS** (later): Langfuse observability.
+- **NAS** (`10.63.0.2`): LiteLLM gateway + Postgres, as a Dockge compose stack on TrueNAS. Always-on services host (Langfuse observability later). Gateway at `http://10.63.0.2:4000`.
+- **Mac** (`10.63.0.32`): Ollama only — the `private` route model. Headless, no-sleep (`pmset`). Listens on the LAN for the NAS gateway.
+- **Arch** (`10.63.0.29`): Hermes Agent + the `aux-local` Ollama (4B on the 7900 XTX).
+
+> **Gateway moved Mac → NAS (2026-05-22).** Why + the trade-offs: [`journal/2026-05-22-litellm-gateway-to-nas.md`](journal/2026-05-22-litellm-gateway-to-nas.md). The old Mac stack (`mac/`) is retained for rollback until the NAS gateway is verified live, then retired.
 
 ## Model routes (through the gateway)
 
@@ -21,33 +23,54 @@ How to operate the hybrid gateway. See the [design spec](superpowers/specs/2026-
 - **No automatic context fallback:** the triage advisor decides where an oversized prompt goes (it is not hardwired).
 - `keep_alive: -1` keeps the local model resident (~17 GB always in memory; warm `private` responses).
 
-## Start / stop the gateway (on the Mac, in `~/AISetup/mac`)
+## Start / stop the gateway (on the NAS, via Dockge)
 
-```bash
-docker compose --env-file .env up -d        # start
-docker compose --env-file .env down         # stop
-docker compose --env-file .env restart litellm   # reload after editing litellm-config.yaml
-docker compose --env-file .env logs -f litellm    # logs
-```
+The stack lives in `nas/` (repo) → a Dockge stack dir on a NAS pool path
+(the TrueNAS system dataset is read-only — use your apps/pool dataset). The
+dir holds `docker-compose.yml`, `litellm-config.yaml`, and a filled `.env`.
 
-> **Gotcha:** `litellm-config.yaml` is a *mounted file*. After editing it, `up -d` does **nothing** (compose spec unchanged) — you must `restart litellm` to reload it.
+- **Start / stop / restart:** Dockge UI buttons on the stack.
+- **Logs:** Dockge stack log pane (or `docker logs -f <stack>-litellm-1` on the NAS shell).
+
+> **Gotcha:** `litellm-config.yaml` is a *mounted file*. After editing it, a stack
+> redeploy with an unchanged compose spec does **nothing** — you must **restart the
+> `litellm` service** (Dockge restart, or `docker compose restart litellm`) to reload it.
 
 ## Auto-start across reboots
 
-- compose `restart: always` + Docker Desktop set to start at login + Mac auto-login.
-- Ollama: launch on login. `pmset -a sleep 0 disablesleep 1` keeps the Mac awake.
+- compose `restart: always` → Docker (and Dockge stacks) come back with the NAS.
+- **Mac:** Ollama launches on login; `pmset -a sleep 0 disablesleep 1` keeps it awake. The Mac no longer runs the gateway — only the model.
+
+## Mac Ollama on the LAN (required by the move)
+
+The gateway is off-box now, so the Mac's Ollama must accept connections from the
+NAS. It was `127.0.0.1`-only (verified 2026-05-22: `lsof` showed `TCP 127.0.0.1:11434 (LISTEN)`).
+
+1. **Expose on the LAN.** The macOS Ollama **app ignores `launchctl setenv OLLAMA_HOST`**
+   (see the WS2 note below), so use the app's network setting: Ollama menubar →
+   Settings → enable **"Expose Ollama to the network"** (binds `0.0.0.0:11434`),
+   then quit & reopen. *(Alternative for env control — quit the app and run a
+   managed `ollama serve` via LaunchAgent with `OLLAMA_HOST=0.0.0.0:11434`.)*
+   Verify from the NAS shell: `curl http://10.63.0.32:11434/api/tags`.
+2. **Fence it to the NAS** (the API is unauthenticated; mirror the Arch guard).
+   macOS uses `pf`, not nftables — scope `:11434` to `127.0.0.1` + `10.63.0.2`
+   and drop other LAN sources, persisted via a `LaunchDaemon`. Not yet scripted in
+   the repo; until it is, the LAN exposure is open to the local network.
 
 ## Verify health
 
 ```bash
-curl http://10.63.0.32:4000/health/liveliness                       # -> "I'm alive!"
-curl http://10.63.0.32:4000/v1/models -H "Authorization: Bearer $KEY"  # -> main, private, deep, deep-fallback
+curl http://10.63.0.2:4000/health/liveliness                       # -> "I'm alive!"
+curl http://10.63.0.2:4000/v1/models -H "Authorization: Bearer $KEY"  # -> main, private, deep, deep-fallback
+# End-to-end the local hops (these break first after the move):
+#   private  -> Mac Ollama  (needs Mac LAN bind + pf allow 10.63.0.2)
+#   aux-local-> Arch Ollama (needs ollama_guard allowing 10.63.0.2)
 ```
-Dashboard: `http://10.63.0.32:4000/ui` (login `UI_USERNAME` / `UI_PASSWORD`).
+Dashboard: `http://10.63.0.2:4000/ui` (login `UI_USERNAME` / `UI_PASSWORD`).
 
 ## Hermes (Arch)
 
-- `~/.hermes/config.yaml`: `model.provider: custom`, `base_url: http://10.63.0.32:4000/v1`, `default: main`, `api_key: <litellm master key literal>`.
+- `~/.hermes/config.yaml`: `model.provider: custom`, `base_url: http://10.63.0.2:4000/v1`, `default: main`, `api_key: <litellm master key literal>`. (Was `10.63.0.32` — repoint to the NAS after the move.)
 - Switch model in a session: `/model deep` (heavy research), `/model private` (on-device/private). `main` is the default — no switch needed to return to it.
 - Pin email triage to `private` so sensitive inbox content stays on-device even though the brain is cloud.
 - Config backups: `~/.hermes/config.yaml.bak-*`.
@@ -60,7 +83,7 @@ Dashboard: `http://10.63.0.32:4000/ui` (login `UI_USERNAME` / `UI_PASSWORD`).
   - `compression` → **`model: main`** (cloud). The summary model must have a context window **≥ the main agent model's**, and Hermes enforces a **64k hard floor** on it — else the middle turns are dropped *without* a summary (silent context loss, the top cause of degraded compaction). The 4B at 32k failed both, so compression routes to `main` (GPT-5-mini, 400k). Privacy tradeoff accepted: a compaction sends the conversation middle to the cloud brain, same as any `main` turn.
   - `curator` → **`model: private`** → Mac `qwen3.6:27b` (rare/weekly, idle-triggered; capable + on-device). Its timeout is raised to **1800 s** for the ~11 tok/s agentic loop. The cache-bust is harmless because it only runs when idle (cost: one ~84 s cold re-ingest on your next turn).
   - **Do not let these default back to `provider: auto`.** Everything still flows through LiteLLM for observability.
-- **`aux-local` gateway model** (`mac/litellm-config.yaml`): `ollama_chat/qwen3:4b-instruct-2507-q4_K_M` at `http://10.63.0.29:11434` (Arch LAN IP), `input/output_cost_per_token: 0` (logged, never counts against the €100 cap), `keep_alive: 10m`. **Requires Arch Ollama to listen on the LAN:** systemd drop-in `Environment="OLLAMA_HOST=0.0.0.0:11434"`, firewall-scoped to the Mac (`10.63.0.32`). If `aux-local` calls return `APIConnectionError ... 10.63.0.29:11434`, the Arch bind/firewall is the cause.
+- **`aux-local` gateway model** (`nas/litellm-config.yaml`): `ollama_chat/qwen3:4b-instruct-2507-q4_K_M` at `http://10.63.0.29:11434` (Arch LAN IP), `input/output_cost_per_token: 0` (logged, never counts against the €100 cap), `keep_alive: 10m`. **Requires Arch Ollama to listen on the LAN:** systemd drop-in `Environment="OLLAMA_HOST=0.0.0.0:11434"`, firewall-scoped to the **NAS** (`10.63.0.2`) — the gateway moved off the Mac, so the guard's allowed source changed (`arch/nftables-ollama-guard.nft`; re-install per `arch/README.md`). If `aux-local` calls return `APIConnectionError ... 10.63.0.29:11434`, the Arch bind/firewall is the cause.
 - `keep_alive: -1` (gateway model block) keeps the 18k prefix resident across turns/sessions so subsequent turns stay cache-warm (~8–16 s).
 - **Diagnosing cache busts:** capture real requests with a manual logging server — the macOS Ollama app ignores `launchctl setenv`, so quit it and run `OLLAMA_DEBUG_LOG_REQUESTS=true OLLAMA_KEEP_ALIVE=-1 /Applications/Ollama.app/Contents/Resources/ollama serve`. Bodies land in a temp `ollama-request-logs-*` dir as JSON; diff consecutive agent turns' `messages[0]` and watch for small auxiliary prompts interleaved between them. Restore the app with `open -a Ollama` when done.
 - **Cold-ingest / KV tuning (WS2) — measured, not adopted:** `num_batch` (512→2048) is flat (~140 tok/s) and `OLLAMA_KV_CACHE_TYPE=q8_0` doesn't speed ingest or generation; both ingest and the ~11 tok/s generation are memory-bandwidth bound on the M2 Max. `q8_0` only *frees ~2.6 GiB VRAM* (24.4→21.8 GiB) — useful headroom for a future draft model, but the app ignores the env var, so persisting it requires running Ollama as a managed `ollama serve` (LaunchAgent). Deferred until/unless WS3 (speculative decoding) is adopted. Don't reach for these as speed fixes. See `mac/bench/results.md` → "After WS2".
@@ -87,13 +110,15 @@ Dashboard: `http://10.63.0.32:4000/ui` (login `UI_USERNAME` / `UI_PASSWORD`).
 
 ## Secrets
 
-- Live ONLY in `~/AISetup/mac/.env` on the Mac (gitignored). Template: `mac/.env.example`.
+- Live ONLY in the `.env` inside the **Dockge stack dir on the NAS** (gitignored). Template: `nas/.env.example`.
 - Hermes master key: literal in `~/.hermes/config.yaml` (mode 600, not in git).
-- Rotate: regenerate `.env` values → `docker compose --env-file .env down -v && up -d` → update `api_key` in `~/.hermes/config.yaml`.
+- Rotate: regenerate `.env` values → redeploy the stack in Dockge (`down -v` then up, which also resets budget counters) → update `api_key` in `~/.hermes/config.yaml`.
 
 ## Common gotchas
 
 - **Config edit ignored** → `restart litellm` (mounted file).
+- **`private` → `APIConnectionError ... host.docker.internal`** → leftover from the Mac-hosted gateway. On the NAS there is no `host.docker.internal`; `private`'s `api_base` must be the Mac LAN IP `http://10.63.0.32:11434` (already set in `nas/litellm-config.yaml`).
+- **`private` → connection refused to `10.63.0.32:11434`** → Mac Ollama not on the LAN (see § "Mac Ollama on the LAN") or pf is blocking the NAS.
 - **SSH terminal garbled** (backspace wrong) → connect with `TERM=xterm-256color ssh 10.63.0.32`.
 - **First call ~15 s** → cold model load; `keep_alive: -1` keeps it warm afterward.
 - **401 from gateway** → Hermes `api_key` must be the literal master key (`key_env` is not honored on the main `model:` block).
