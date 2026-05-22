@@ -1,0 +1,15 @@
+apiVersion: 1
+
+providers:
+  - name: aisetup
+    orgId: 1
+    folder: AISetup
+    type: file
+    disableDeletion: false
+    editable: true
+    allowUiUpdates: true
+    options:
+      # Grafana loads every *.json in this dir as a dashboard. The compose file
+      # mounts ./provisioning/dashboards here read-only.
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false
