@@ -47,10 +47,14 @@ Three reasons that doesn't work well enough:
 
 1. **Temporality mismatch.** Claude Code defaults to `delta` temporality: each
    session emits counts relative to the session start, not accumulated totals.
-   Prometheus expects `cumulative` counters that only go up. Without normalisation,
-   Grafana graphs look like a sawtooth — back to zero at every new session. The OTel
-   collector's `cumulativetodelta` (inverted: `deltaToCumulative`) processor solves
-   this before data reaches Prometheus. This alone justifies the collector hop.
+   Prometheus expects `cumulative` counters that only go up; left as delta, the
+   graphs would sawtooth back to zero at every new session. We fix this at the
+   source — `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=cumulative` in
+   `arch/claude-code-otel.sh` makes Claude Code itself emit cumulative — so the
+   collector doesn't need a conversion processor; it just receives clean cumulative
+   metrics and re-exposes them. (This is also why the collector path matters: it is
+   the natural place to normalise or transform if a future exporter can't be told to
+   emit cumulative directly.)
 
 2. **Decoupling.** A CLI tool that starts and stops repeatedly is a rough fit for
    Prometheus's pull model. The collector buffers and exposes a stable scrape target
