@@ -1,5 +1,8 @@
 # CLAUDE.md
 
+> **Inherits the general BuildInPublic rules:** @/home/dertechie/Organizations/DerTechie/BuildInPublic/CLAUDE.md
+> Project-specific rules below override or extend them.
+
 ## What this project is
 
 **AISetup** is the design and build of a hybrid local/cloud AI agent setup: **Hermes Agent** (on an Arch Linux workstation) talks to a **LiteLLM gateway** on a headless **Mac M2 Max**, which routes to a **local Ollama model** for routine work and to **OpenRouter** for heavy business research. Goals: keep the workstation free, run routine tasks locally for free/privately, reach cloud reasoning only when needed, with hard cost bounds and full observability.
