@@ -107,3 +107,15 @@ Dashboard: `http://10.63.0.32:4000/ui` (login `UI_USERNAME` / `UI_PASSWORD`).
 - Judge runs on the `main` route (fast cloud) — running it on the slow `private` model would cost ~2 min per recommendation. Costs a fraction of a cent. Recommend-only — it never switches models.
 - Recommends one of `main` (stay, the default), `private` (on-device), or `deep` (escalate).
 - Recommendations are logged to `~/.hermes/triage-advisor.jsonl` (review before considering auto-routing).
+
+## Refreshing model prices / scores
+
+From the repo root:
+
+```bash
+export ARTIFICIALANALYSIS_API_KEY=<key>     # for scores only
+python3 -m pricing.pricetrack all           # refresh prices + scores + join
+git add pricing/data && git commit -m "data(pricing): refresh snapshot $(date +%F)"
+```
+
+The commit diff is the price-change record. See [`pricing/README.md`](pricing/README.md) for details.

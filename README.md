@@ -72,3 +72,4 @@ The routing layer (LiteLLM) is the centerpiece and ships first.
 - `docs/journal/` — dated decision log (the "why", and the story for a talk)
 - `docs/runbook.md` — how to operate the system
 - `CLAUDE.md` — working conventions
+- **`pricing/`** — OpenRouter price + Artificial Analysis quality tracker; snapshots to committed CSVs for accurate, dated cost comparisons (see [`pricing/README.md`](pricing/README.md)).
