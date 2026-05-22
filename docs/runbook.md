@@ -4,7 +4,7 @@ How to operate the hybrid gateway. See the [design spec](superpowers/specs/2026-
 
 ## Hosts
 
-- **NAS** (`10.63.0.2`): LiteLLM gateway + Postgres, as a Dockge compose stack on TrueNAS. Always-on services host (Langfuse observability later). Gateway at `http://10.63.0.2:4000`.
+- **NAS** (`10.63.0.2`): LiteLLM gateway + Postgres, Langfuse v3 (traces `:3000`), and Grafana usage metrics (`:3001`) — all as Dockge compose stacks on TrueNAS. Always-on services host. Gateway at `http://10.63.0.2:4000`.
 - **Mac** (`10.63.0.32`): Ollama only — the `private` route model. Headless, no-sleep (`pmset`). Listens on the LAN for the NAS gateway.
 - **Arch** (`10.63.0.29`): Hermes Agent + the `aux-local` Ollama (4B on the 7900 XTX).
 
@@ -122,6 +122,46 @@ Expect a non-empty `data` array. An empty array means no traces have arrived yet
 **Failure mode — Langfuse outage does not break LLM requests:**
 
 The `success_callback` is async fire-and-forget. A Langfuse outage (stack down, OOM, network blip) never blocks or errors a gateway request. If traces stop appearing, diagnose the Langfuse stack independently in Dockge rather than suspecting the gateway or a model route.
+
+## Verify Grafana usage metrics
+
+Grafana runs as its own Dockge stack (`nas/metrics/`) on the NAS. UI at `http://10.63.0.2:3001` (`:3001` because Langfuse owns `:3000`).
+
+**Grafana health:**
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://10.63.0.2:3001/api/health
+```
+
+Expect `200`. Anything else: check the metrics stack in Dockge (not the gateway or Langfuse stacks).
+
+**Datasource health (both should show `200` with `"status":"OK"`):**
+
+```bash
+for uid in prometheus litellm-pg; do
+  echo -n "$uid: "
+  curl -s -u admin:YOUR-ADMIN-PW "http://10.63.0.2:3001/api/datasources/uid/$uid/health" | head -c 120
+  echo
+done
+```
+
+Replace `YOUR-ADMIN-PW` with the `GF_SECURITY_ADMIN_PASSWORD` from the metrics stack `.env`.
+
+**How the two data paths work:**
+
+- **Gateway spend (Postgres datasource `litellm-pg`):** Grafana connects to `litellm-db` by service name over the gateway stack's external Docker network (set via `GATEWAY_NETWORK` in the metrics `.env`). It uses a dedicated read-only role `grafana_ro` — the dashboard can never write to the billing database and the live gateway is untouched.
+- **Claude Code usage (Prometheus datasource):** On Arch, source `arch/claude-code-otel.sh` before launching Hermes. This configures Claude Code's native OTel export to send metrics to the collector at `:4318`; the collector normalises temporality (`cumulative` — Claude Code defaults to `delta`) and scrapes into Prometheus, where Grafana reads them. The metric series are:
+  - `claude_code_cost_usage_USD_total` — estimated subscription cost in USD
+  - `claude_code_token_usage_tokens_total` — token counts (input/output/cache labels)
+  - `claude_code_session_count_total` — sessions started
+
+**Currency note:** The gateway dashboard shows spend in **USD** against the **$100** route-cap total (`main` $50 + `deep` $35 + `deep-fallback` $15), which approximates the €100 project target. USD and EUR are treated as interchangeable on the dashboard.
+
+**Failure modes:**
+
+- **Grafana or Prometheus down:** has no effect on the gateway, Langfuse, or any LLM request — it is a separate, read-only stack.
+- **Gateway dashboard shows "No data":** check that `GATEWAY_NETWORK` in the metrics `.env` matches the gateway stack's external network name, and that the `grafana_ro` Postgres role exists (see `nas/metrics/README.md` for the `CREATE ROLE` one-liner).
+- **Claude Code dashboard is empty:** confirm `arch/claude-code-otel.sh` was sourced in the current shell before launching Hermes, and that the OTel collector at `:4318` is reachable from Arch (`curl -s http://10.63.0.2:4318` should not time out).
 
 ## Hermes (Arch)
 
