@@ -136,7 +136,7 @@ and show the full picture side by side.
 
 **Repo artifacts are done**: the Langfuse v3 compose stack and env template are in
 `nas/langfuse/`, the gateway's `success_callback` wiring is in
-`nas/litellm/config.yaml`, and docs are updated. **The live cutover is not yet
+`nas/litellm-config.yaml`, and docs are updated. **The live cutover is not yet
 done and has not been verified.** Completing it requires placing the stack
 directory on a NAS pool path (TrueNAS's system dataset is read-only), starting the
 stack in Dockge, confirming all six containers reach a healthy state, and running
