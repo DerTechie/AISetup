@@ -15,10 +15,7 @@ delete table inet ollama_guard
 table inet ollama_guard {
   chain input {
     type filter hook input priority filter; policy accept;
-    # NAS (10.63.0.2) is the gateway. 10.63.0.32 (Mac) kept transitionally so a
-    # rollback to the old Mac stack needs no second firewall edit; drop it once
-    # the NAS gateway is verified live and mac/ is retired.
-    tcp dport 11434 ip saddr { 127.0.0.1, 10.63.0.2, 10.63.0.32 } accept comment "Ollama: localhost + NAS gateway (+ Mac, transitional)"
+    tcp dport 11434 ip saddr { 127.0.0.1, 10.63.0.2 } accept comment "Ollama: localhost + NAS gateway"
     tcp dport 11434 drop comment "Ollama: block all other LAN sources"
   }
 }
