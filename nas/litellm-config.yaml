@@ -44,6 +44,8 @@ litellm_settings:
   # deep vendor outage/error -> deep-fallback (different vendor).
   # No context_window_fallbacks: the triage advisor decides overflow targets (per redesign spec).
   fallbacks: [{"main": ["private"]}, {"deep": ["deep-fallback"]}]
+  # Per-request traces -> Langfuse on the NAS (async, fire-and-forget; never blocks a request).
+  success_callback: ["langfuse"]
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
