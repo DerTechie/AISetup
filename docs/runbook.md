@@ -93,6 +93,36 @@ curl http://10.63.0.2:4000/v1/models -H "Authorization: Bearer $KEY"  # -> main,
 ```
 Dashboard: `http://10.63.0.2:4000/ui` (login `UI_USERNAME` / `UI_PASSWORD`).
 
+## Verify Langfuse and trace wiring
+
+Langfuse v3 runs as its own Dockge stack on the NAS. UI/API at `http://10.63.0.2:3000`.
+
+**Langfuse health:**
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://10.63.0.2:3000/api/public/health
+```
+
+Expect `200`. Anything else: check the Langfuse stack in Dockge (not the gateway stack).
+
+**Recent traces** (substitute project keys from the `.env` for `-u user:password`):
+
+```bash
+curl -s -u "pk-lf-…:sk-lf-…" "http://10.63.0.2:3000/api/public/traces?limit=1"
+```
+
+Expect a non-empty `data` array. An empty array means no traces have arrived yet — make one request through the gateway first, then re-check.
+
+**How the wiring works:**
+
+- The LiteLLM stack's `litellm-config.yaml` has `success_callback: ["langfuse"]`.
+- The LiteLLM stack's `.env` provides `LANGFUSE_HOST=http://10.63.0.2:3000`, `LANGFUSE_PUBLIC_KEY`, and `LANGFUSE_SECRET_KEY`.
+- Those key values **must match** the Langfuse stack's `LANGFUSE_INIT_PROJECT_PUBLIC_KEY` / `LANGFUSE_INIT_PROJECT_SECRET_KEY`. If the stacks were deployed independently with different values, traces will be rejected (401) — fix by aligning both `.env` files and redeploying both stacks.
+
+**Failure mode — Langfuse outage does not break LLM requests:**
+
+The `success_callback` is async fire-and-forget. A Langfuse outage (stack down, OOM, network blip) never blocks or errors a gateway request. If traces stop appearing, diagnose the Langfuse stack independently in Dockge rather than suspecting the gateway or a model route.
+
 ## Hermes (Arch)
 
 - `~/.hermes/config.yaml`: `model.provider: custom`, `base_url: http://10.63.0.2:4000/v1`, `default: main`, `api_key: <litellm master key literal>`. (Was `10.63.0.32` — repoint to the NAS after the move.)
