@@ -46,16 +46,38 @@ dir holds `docker-compose.yml`, `litellm-config.yaml`, and a filled `.env`.
 The gateway is off-box now, so the Mac's Ollama must accept connections from the
 NAS. It was `127.0.0.1`-only (verified 2026-05-22: `lsof` showed `TCP 127.0.0.1:11434 (LISTEN)`).
 
-1. **Expose on the LAN.** The macOS Ollama **app ignores `launchctl setenv OLLAMA_HOST`**
-   (see the WS2 note below), so use the app's network setting: Ollama menubar →
-   Settings → enable **"Expose Ollama to the network"** (binds `0.0.0.0:11434`),
-   then quit & reopen. *(Alternative for env control — quit the app and run a
-   managed `ollama serve` via LaunchAgent with `OLLAMA_HOST=0.0.0.0:11434`.)*
-   Verify from the NAS shell: `curl http://10.63.0.32:11434/api/tags`.
-2. **Fence it to the NAS** (the API is unauthenticated; mirror the Arch guard).
-   macOS uses `pf`, not nftables — scope `:11434` to `127.0.0.1` + `10.63.0.2`
-   and drop other LAN sources, persisted via a `LaunchDaemon`. Not yet scripted in
-   the repo; until it is, the LAN exposure is open to the local network.
+The macOS Ollama **app ignores `OLLAMA_HOST`** and its "expose to network" toggle
+is GUI-only (no console path). So on this **headless** Mac we replace the menubar
+app's server with a managed `ollama serve` **LaunchAgent** — repo file
+[`../mac/com.ollama.serve.plist`](../mac/com.ollama.serve.plist). Loaded into the
+`gui/$UID` domain it runs inside the auto-login GUI session and **keeps Metal GPU
+access** (a `LaunchDaemon` would not). Install:
+
+```bash
+cp mac/com.ollama.serve.plist ~/Library/LaunchAgents/
+plutil -lint ~/Library/LaunchAgents/com.ollama.serve.plist        # -> OK
+pkill -f "Ollama.app/Contents/MacOS/Ollama"                       # quit menubar app
+pkill -f "Contents/Resources/ollama serve"                        # and its server
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.ollama.serve.plist
+```
+
+Verify (done 2026-05-22): `lsof -nP -iTCP:11434 -sTCP:LISTEN` → `*:11434`;
+`ollama ps` → `100% GPU`; from another LAN host `curl http://10.63.0.32:11434/api/tags`.
+
+The agent sets `OLLAMA_NUM_PARALLEL=1` (the one-KV-slot prefix-cache rule) and
+`OLLAMA_KEEP_ALIVE=-1` (keep `private` resident). It loads at the default 32k
+until the gateway's first `private` call (which requests `num_ctx 65536`) reloads
+it at 64k.
+
+> **One manual step (GUI, not console-doable — TCC-blocked over SSH):** turn OFF
+> Ollama in **System Settings → General → Login Items**, or on reboot the menubar
+> app relaunches and fights the agent for `:11434`. Until then the agent is live
+> but reboot persistence is not guaranteed.
+
+**Still open — fence it to the NAS.** The API is unauthenticated and now LAN-wide.
+Mirror the Arch guard: macOS uses `pf`, not nftables — scope `:11434` to
+`127.0.0.1` + `10.63.0.2`, drop other LAN sources, persist via a `LaunchDaemon`.
+Not yet scripted in the repo; until it is, any LAN host can use the model.
 
 ## Verify health
 

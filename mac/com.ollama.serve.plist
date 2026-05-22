@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Managed `ollama serve` for the headless Mac, replacing the menubar app's
+  server so Ollama listens on the LAN for the NAS gateway (the `private` route).
+  Loaded into the gui/$UID domain so it runs inside the auto-login GUI session
+  and keeps Metal GPU access (a LaunchDaemon would not).
+
+  Install (see mac/README.md):
+    cp com.ollama.serve.plist ~/Library/LaunchAgents/
+    osascript -e 'quit app "Ollama"'      # free :11434 from the menubar app
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.ollama.serve.plist
+  Also: System Settings > General > Login Items > turn OFF "Ollama" (else it
+  relaunches on reboot and fights the agent for the port).
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.ollama.serve</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Applications/Ollama.app/Contents/Resources/ollama</string>
+    <string>serve</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>OLLAMA_HOST</key>
+    <string>0.0.0.0:11434</string>
+    <key>OLLAMA_NUM_PARALLEL</key>
+    <string>1</string>
+    <key>OLLAMA_KEEP_ALIVE</key>
+    <string>-1</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/dertechie/.ollama/logs/serve.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/dertechie/.ollama/logs/serve.err.log</string>
+</dict>
+</plist>
