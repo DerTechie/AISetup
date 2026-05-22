@@ -20,6 +20,23 @@ def test_build_join_blends_price_and_attaches_intelligence():
     assert set(row.keys()) == set(JOIN_FIELDNAMES)
 
 
+def test_build_join_attaches_agentic_columns():
+    prices = [{
+        "id": "openai/o3-mini", "name": "OpenAI: o3 Mini",
+        "prompt_usd_per_mtok": "1.1", "completion_usd_per_mtok": "4.4",
+    }]
+    scores = [
+        {"source_model_name": "o3-mini", "benchmark": "tau2", "score": "0.684"},
+        {"source_model_name": "o3-mini", "benchmark": "terminalbench_hard", "score": "0.333"},
+    ]
+    id_map = [{"openrouter_id": "openai/o3-mini", "aa_slug": "o3-mini"}]
+    row = build_price_vs_quality(prices, scores, id_map)[0]
+    assert row["aa_tau2"] == "0.684"
+    assert row["aa_terminalbench_hard"] == "0.333"
+    # missing intelligence score stays blank, not dropped
+    assert row["aa_intelligence_index"] == ""
+
+
 def test_build_join_blank_when_unmapped():
     prices = [{
         "id": "vendor/unmapped", "name": "Vendor: Unmapped",

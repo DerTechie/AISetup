@@ -1,47 +1,23 @@
-model_list:
-  - model_name: main             # default brain: fast cloud (GPT-5-mini), low latency, every turn
-    litellm_params:
-      model: openrouter/openai/gpt-5-mini
-      api_key: os.environ/OPENROUTER_API_KEY
-      max_tokens: 8000          # per-request completion ceiling (GPT-5-mini caps at 128k)
-      max_budget: 50            # USD - default brain runs every turn; 50 + 35 + 15 = 100 total (~EUR92)
-      budget_duration: 30d
-  - model_name: private          # on-device local: privacy / EUR0 / bulk; slow, no budget (always available)
-    litellm_params:
-      model: ollama_chat/qwen3.6:27b
-      api_base: http://10.63.0.32:11434   # Mac LAN IP. Gateway now runs OFF the Mac (on the NAS),
-                                          # so host.docker.internal no longer reaches Ollama — must be the LAN IP.
-                                          # Requires Mac Ollama bound to 0.0.0.0:11434 + firewalled to the NAS.
-      keep_alive: -1             # keep model resident: no reload, prompt cache stays warm
-      reasoning_effort: none     # thinking off (the only local route now; local-think dropped)
-      num_ctx: 65536             # >=64k: Hermes main-model floor; measured 26GB/100% GPU on the 32GB Mac (f16 KV)
-  - model_name: aux-local        # Hermes text aux tasks: local 4B on the Arch 7900XTX (on-device, EUR0)
-    litellm_params:
-      model: ollama_chat/qwen3:4b-instruct-2507-q4_K_M
-      api_base: http://10.63.0.29:11434   # Arch workstation Ollama over the LAN (gateway on the NAS calls back to Arch)
-      keep_alive: 10m            # warm during a session, frees VRAM when idle (shared working-machine GPU)
-      input_cost_per_token: 0    # local compute: never counts against the EUR100 cap, still logged
-      output_cost_per_token: 0
-  - model_name: deep             # heavy research: GPT-5 (served first-party by OpenAI + Azure)
-    litellm_params:
-      model: openrouter/openai/gpt-5
-      api_key: os.environ/OPENROUTER_API_KEY
-      max_tokens: 8000
-      max_budget: 35            # USD - carved from the old 75; cloud cap stays <=100 total
-      budget_duration: 30d
-  - model_name: deep-fallback    # used only if `deep` (GPT-5) errors/outage; different vendor
-    litellm_params:
-      model: openrouter/google/gemini-3.1-pro-preview
-      api_key: os.environ/OPENROUTER_API_KEY
-      max_tokens: 8000          # Gemini 3.1 Pro caps at 65k; 1M context
-      max_budget: 15            # USD - outage-only insurance; keeps total cloud cap at <=100
-      budget_duration: 30d
+# Model routes are stored in the DATABASE (store_model_in_db), NOT in this file, so they
+# can be added / edited / swapped live in the UI or via /model/new + /model/update with no
+# redeploy. (Config-defined models are read-only in the UI — that was the friction this
+# migration removes; see docs/journal/2026-05-22-litellm-models-in-db.md.)
+#
+# Bootstrap / disaster-recovery definitions for a fresh DB live in nas/models.seed.json;
+# apply them with `python3 nas/seed_models.py`. Per-route rationale rides into the DB as
+# each model's model_info.description (visible in the UI). The route re-pick rationale is in
+# docs/journal/2026-05-22-model-route-repick-tool-use.md.
+#
+# TRADE-OFF (accepted): live model state can drift from models.seed.json — the seed file is a
+# bootstrap, not per-change history. Routing safety logic that must stay reviewable in git
+# (fallbacks, retries, callbacks) stays below.
 
 litellm_settings:
   drop_params: true
   num_retries: 2
   # main hits its budget cap -> degrade to private (slow local brain), never die.
   # deep vendor outage/error -> deep-fallback (different vendor).
+  # Fallbacks match by model_name, so they resolve against the DB-stored routes.
   # No context_window_fallbacks: the triage advisor decides overflow targets (per redesign spec).
   fallbacks: [{"main": ["private"]}, {"deep": ["deep-fallback"]}]
   # Per-request traces -> Langfuse on the NAS (async, fire-and-forget; never blocks a request).
@@ -49,3 +25,4 @@ litellm_settings:
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
+  store_model_in_db: true   # routes live in Postgres; add/edit/swap in the UI without a restart

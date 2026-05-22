@@ -14,14 +14,24 @@ How to operate the hybrid gateway. See the [design spec](superpowers/specs/2026-
 
 | Route | Backend | Use |
 |---|---|---|
-| `main` | OpenRouter `openai/gpt-5-mini` (cloud) | **Default brain.** Orchestration + routine: triage, drafting, summarizing, route decisions. Fast, every turn. |
+| `main` | OpenRouter `deepseek/deepseek-v4-flash` (cloud) | **Default brain.** Orchestration + routine: triage, drafting, summarizing, route decisions. Cheap, every turn. |
 | `private` | qwen3.6:27b on Ollama, thinking **off** | On-device work where privacy or €0 is worth the latency (slow). Also the email-triage pin. |
-| `deep` | OpenRouter `openai/gpt-5` | Heavy research / strategic reasoning / large context. |
-| `deep-fallback` | OpenRouter `google/gemini-3.1-pro-preview` | Reliability backstop; used only if `deep` errors. |
+| `deep` | OpenRouter `google/gemini-3.1-pro-preview` | Heavy research / strategic reasoning / large context. |
+| `deep-fallback` | OpenRouter `openai/gpt-5` | Reliability backstop; used only if `deep` errors (different vendor, first-party-served). |
 
 - **At its budget cap, `main` degrades to `private`** (slow local brain) via LiteLLM `fallbacks` — the agent stays alive and the hard cap holds.
 - **No automatic context fallback:** the triage advisor decides where an oversized prompt goes (it is not hardwired).
 - `keep_alive: -1` keeps the local model resident (~17 GB always in memory; warm `private` responses).
+
+### Where routes are defined (DB-backed, since 2026-05-22)
+
+Routes live in **Postgres**, not `litellm-config.yaml` — `general_settings: store_model_in_db: true`. So you **add / edit / swap a model in the UI (or via `/model/new` + `/model/update`) with no restart**. (Models defined in `config.yaml` are read-only in the UI; that friction is why we migrated — see [`journal/2026-05-22-litellm-models-in-db.md`](journal/2026-05-22-litellm-models-in-db.md).)
+
+- **Swap the model behind a route (the common case):** UI → *Models* → edit the route → change its `litellm_params.model` → save. Live immediately. To switch `main` from DeepSeek V4 Flash to something else, that's the whole operation — no `docker compose`.
+- **Bootstrap / restore a fresh DB:** `git`-tracked seed at `nas/models.seed.json`; apply with `LITELLM_MASTER_KEY=… python3 nas/seed_models.py` (`--force` to overwrite existing routes after editing the seed, `--dry-run` to preview). Per-route rationale rides in as each model's `model_info.description`.
+- **Trade-off:** live route state can **drift from the seed file** — it's a bootstrap, not per-change history. Routing safety logic that must stay reviewable in git (`fallbacks`, `num_retries`, `success_callback`) still lives in `litellm-config.yaml`.
+- **A config restart is only needed** to change `litellm_settings`/`general_settings` (fallbacks, callbacks, the DB flag itself) — never for a model swap.
+- **Credentials for DB routes are different from config routes.** A DB-stored model does **not** resolve `api_key: os.environ/OPENROUTER_API_KEY` at call time (config models do) — it needs the **literal** key, which LiteLLM encrypts at rest using **`LITELLM_SALT_KEY`**. So: `LITELLM_SALT_KEY` must be set in the stack `.env` (a fixed random value, **never changed** — changing it makes every stored key undecryptable), and `seed_models.py` expands the `os.environ/` ref to the real secret at seed time (run it where `OPENROUTER_API_KEY` is in the shell). `models.seed.json` keeps the ref, so it stays git-clean. Swapping a cloud model in the UI: paste the real key (it's encrypted), don't type an `os.environ/` ref.
 
 ## Start / stop the gateway (on the NAS, via Dockge)
 
@@ -175,7 +185,7 @@ Replace `YOUR-ADMIN-PW` with the `GF_SECURITY_ADMIN_PASSWORD` from the metrics s
 - The local model has **one KV slot** (`OLLAMA_NUM_PARALLEL=1`). Any call that lands on it with a different prompt **evicts** the cached agent prefix, forcing the next agent turn to re-ingest the full ~16k context cold (~2 min). The big lever for `private` speed is keeping that slot holding the agent's stable prefix.
 - Therefore Hermes' text **auxiliary tasks** must never land on the Mac's `private` slot during a conversation. As of 2026-05-21 they run on **dedicated Arch hardware** instead (design: [`docs/superpowers/specs/2026-05-21-local-aux-models-design.md`](superpowers/specs/2026-05-21-local-aux-models-design.md)). In `~/.hermes/config.yaml` under `auxiliary:`, all set `provider: custom`, `base_url: <gateway>/v1`, `api_key: <master key>`, and route by `model`:
   - `title_generation`, `profile_describer`, `triage_specifier` → **`model: aux-local`** → gateway → local **`qwen3:4b-instruct-2507`** on the Arch **7900 XTX** (on-device, €0). Verified: the 4B produces valid, quality `triage_specifier` specs at ~74–125 tok/s. These are short, single-shot tasks — they don't summarise a whole conversation, so the summary-model context rule below doesn't apply.
-  - `compression` → **`model: main`** (cloud). The summary model must have a context window **≥ the main agent model's**, and Hermes enforces a **64k hard floor** on it — else the middle turns are dropped *without* a summary (silent context loss, the top cause of degraded compaction). The 4B at 32k failed both, so compression routes to `main` (GPT-5-mini, 400k). Privacy tradeoff accepted: a compaction sends the conversation middle to the cloud brain, same as any `main` turn.
+  - `compression` → **`model: main`** (cloud). The summary model must have a context window **≥ the main agent model's**, and Hermes enforces a **64k hard floor** on it — else the middle turns are dropped *without* a summary (silent context loss, the top cause of degraded compaction). The 4B at 32k failed both, so compression routes to `main` (DeepSeek V4 Flash, 1M context). Privacy tradeoff accepted: a compaction sends the conversation middle to the cloud brain, same as any `main` turn.
   - `curator` → **`model: private`** → Mac `qwen3.6:27b` (rare/weekly, idle-triggered; capable + on-device). Its timeout is raised to **1800 s** for the ~11 tok/s agentic loop. The cache-bust is harmless because it only runs when idle (cost: one ~84 s cold re-ingest on your next turn).
   - **Do not let these default back to `provider: auto`.** Everything still flows through LiteLLM for observability.
 - **`aux-local` gateway model** (`nas/litellm-config.yaml`): `ollama_chat/qwen3:4b-instruct-2507-q4_K_M` at `http://10.63.0.29:11434` (Arch LAN IP), `input/output_cost_per_token: 0` (logged, never counts against the €100 cap), `keep_alive: 10m`. **Requires Arch Ollama to listen on the LAN:** systemd drop-in `Environment="OLLAMA_HOST=0.0.0.0:11434"`, firewall-scoped to the **NAS** (`10.63.0.2`) — the gateway moved off the Mac, so the guard's allowed source changed (`arch/nftables-ollama-guard.nft`; re-install per `arch/README.md`). If `aux-local` calls return `APIConnectionError ... 10.63.0.29:11434`, the Arch bind/firewall is the cause.
@@ -189,9 +199,9 @@ Replace `YOUR-ADMIN-PW` with the `GF_SECURITY_ADMIN_PASSWORD` from the metrics s
 - **The fix lives in Hermes, not LiteLLM.** Declare the real window per model in `~/.hermes/config.yaml` under the **gateway** `custom_providers` entry as a `models:` map (matched by `base_url`, so all four aliases — including the entry-less `aux-local` — share one entry):
   ```yaml
   models:
-    main:      {context_length: 400000}   # GPT-5-mini (OpenRouter)
+    main:      {context_length: 1048576}  # DeepSeek V4 Flash (OpenRouter), 1M context
     private:   {context_length: 65536}    # qwen3.6:27b, served at num_ctx 65536
-    deep:      {context_length: 400000}   # GPT-5 (OpenRouter)
+    deep:      {context_length: 1048576}  # Gemini 3.1 Pro (OpenRouter), 1M context
     aux-local: {context_length: 32768}    # 4B aux tasks
   ```
   This override is checked **before** the probe/cache (`get_model_context_length` step 0b), so it always wins. After changing it, blank `~/.hermes/context_length_cache.yaml` (`context_lengths: {}`) to drop stale probed values.
@@ -199,8 +209,8 @@ Replace `YOUR-ADMIN-PW` with the `GF_SECURITY_ADMIN_PASSWORD` from the metrics s
 
 ## Cost control
 
-- Cloud models: `main` = GPT-5-mini (`openrouter/openai/gpt-5-mini`, the default brain), `deep` = GPT-5 (`openrouter/openai/gpt-5`), `deep-fallback` = Gemini 3.1 Pro Preview (used only if `deep` errors).
-- Hard cap on **cloud only**, split so the total stays ≤100 USD (~€92): `main` `max_budget: 50` + `deep` `max_budget: 35` + `deep-fallback` `max_budget: 15` / `budget_duration: 30d` in `litellm-config.yaml`. (`private` is local and intentionally uncapped, so it always works.)
+- Cloud models: `main` = DeepSeek V4 Flash (`openrouter/deepseek/deepseek-v4-flash`, the default brain), `deep` = Gemini 3.1 Pro (`openrouter/google/gemini-3.1-pro-preview`), `deep-fallback` = GPT-5 (`openrouter/openai/gpt-5`, used only if `deep` errors). Re-picked 2026-05-22 — see [`journal/2026-05-22-model-route-repick-tool-use.md`](journal/2026-05-22-model-route-repick-tool-use.md).
+- Hard cap on **cloud only**, split so the total stays ≤100 USD (~€92): `main` `max_budget: 50` + `deep` `max_budget: 35` + `deep-fallback` `max_budget: 15` / `budget_duration: 30d`. These are **per-route params now stored in the DB** (seeded from `nas/models.seed.json`), not the config file — after any model swap, confirm the budget survived in the UI (*Models* → route → budget) or via `/model/info`, since an uncapped cloud route would breach the €100 ceiling. (`private` is local and intentionally uncapped, so it always works.)
 - At cap: the capped cloud model is blocked with a `budget_exceeded` (429) error. **`main` then degrades to `private`** (slow but free) so the agent keeps working; `private` itself has no budget.
 
 ## Secrets
@@ -217,8 +227,8 @@ Replace `YOUR-ADMIN-PW` with the `GF_SECURITY_ADMIN_PASSWORD` from the metrics s
 - **SSH terminal garbled** (backspace wrong) → connect with `TERM=xterm-256color ssh 10.63.0.32`.
 - **First call ~15 s** → cold model load; `keep_alive: -1` keeps it warm afterward.
 - **401 from gateway** → Hermes `api_key` must be the literal master key (`key_env` is not honored on the main `model:` block).
-- **`deep` → 403 `NOT_ENOUGH_BALANCE`** → it's an upstream *provider* error (OpenRouter's own out-of-credit is 402), **not** your key/balance. Isolate with a direct OpenRouter curl forcing `provider: {"order":["<provider>"],"allow_fallbacks":false}`. Fix is provider routing (`ignore`/`only`) or picking a model with reliable providers — this is why `deep` is GPT-5 (first-party OpenAI+Azure) with a Gemini fallback.
-- **`main` answers come from local `qwen` (silent cloud→local fallback)** → a GPT-5-family model rejected the request and the `main → private` fallback served local with a **200 OK, no error**. Most common trigger: `max_tokens < 16` (GPT-5 floors `max_output_tokens` at 16, and reasoning eats the budget) — set clients (n8n nodes etc.) to `max_tokens ≥ 256`. Budget cap is a separate trigger. **Diagnose:** `curl -H "Authorization: Bearer $LITELLM_MASTER_KEY" http://10.63.0.2:4000/health` surfaces per-model `unhealthy_endpoints` with the real upstream error; `/spend/logs` shows per-model spend to rule out the cap. Confirm the served model in the Langfuse trace's `Model` field.
+- **`deep` → 403 `NOT_ENOUGH_BALANCE`** → it's an upstream *provider* error (OpenRouter's own out-of-credit is 402), **not** your key/balance. Isolate with a direct OpenRouter curl forcing `provider: {"order":["<provider>"],"allow_fallbacks":false}`. Fix is provider routing (`ignore`/`only`) or picking a model with reliable providers — the `deep` → `deep-fallback` pair is split across vendors (Google primary, GPT-5 first-party OpenAI+Azure fallback) for exactly this reason.
+- **`main` answers come from local `qwen` (silent cloud→local fallback)** → the `main` model rejected the request and the `main → private` fallback served local with a **200 OK, no error**. Since 2026-05-22 `main` is DeepSeek V4 Flash, so the **budget cap** is now the most likely trigger (the old GPT-5 `max_tokens < 16` floor no longer applies to `main` — but it *still* applies to the GPT-5 `deep-fallback`, so keep clients at `max_tokens ≥ 256`). **Diagnose:** `curl -H "Authorization: Bearer $LITELLM_MASTER_KEY" http://10.63.0.2:4000/health` surfaces per-model `unhealthy_endpoints` with the real upstream error; `/spend/logs` shows per-model spend to rule out the cap. Confirm the served model in the Langfuse trace's `Model` field.
 
 ## Triage advisor (Phase 2)
 - Skill source: `hermes/skills/triage-advisor/` (repo); deployed to `~/.hermes/skills/triage-advisor/`.

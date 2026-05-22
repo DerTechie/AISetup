@@ -10,12 +10,16 @@ import urllib.request
 MODELS_URL = "https://artificialanalysis.ai/api/v2/data/llms/models"
 API_KEY_ENV = "ARTIFICIALANALYSIS_API_KEY"
 
-# Evaluation keys we record, in stable order.
+# Evaluation keys we record, in stable order. The agentic group
+# (terminalbench_hard, tau2) is the part the AA Intelligence Index does NOT
+# capture: tau2 is tool-use / function-calling reliability — the signal that
+# drives the every-turn `main` route pick.
 EVAL_KEYS = [
     "artificial_analysis_intelligence_index",
     "artificial_analysis_coding_index",
     "artificial_analysis_math_index",
     "mmlu_pro", "gpqa", "hle", "livecodebench", "scicode", "math_500", "aime",
+    "aime_25", "ifbench", "lcr", "terminalbench_hard", "tau2",
 ]
 
 SCORE_FIELDNAMES = ["fetched_date", "source_model_name", "benchmark", "score"]

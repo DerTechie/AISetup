@@ -13,11 +13,19 @@ def _norm(text):
 
 
 _INTELLIGENCE = "artificial_analysis_intelligence_index"
+# Benchmark -> output column. tau2 (tool-use reliability) and terminalbench_hard
+# (agentic task completion) are the axes the Intelligence Index misses; both are
+# surfaced here so a route can be picked on tool-use, not just raw smarts.
+_QUALITY_COLUMNS = {
+    _INTELLIGENCE: "aa_intelligence_index",
+    "tau2": "aa_tau2",
+    "terminalbench_hard": "aa_terminalbench_hard",
+}
 
 JOIN_FIELDNAMES = [
     "openrouter_id", "name",
     "prompt_usd_per_mtok", "completion_usd_per_mtok", "blended_usd_per_mtok",
-    "aa_intelligence_index",
+    "aa_intelligence_index", "aa_tau2", "aa_terminalbench_hard",
 ]
 
 
@@ -31,25 +39,28 @@ def _blend(prompt, completion):
 
 
 def build_price_vs_quality(price_rows, score_rows, map_rows):
-    """One row per OpenRouter model: blended price + AA intelligence index."""
+    """One row per OpenRouter model: blended price + AA quality columns."""
     o2a = {m["openrouter_id"]: m["aa_slug"] for m in map_rows if m.get("aa_slug")}
-    intelligence = {
-        s["source_model_name"]: s["score"]
-        for s in score_rows if s["benchmark"] == _INTELLIGENCE
-    }
+    # benchmark -> {aa_slug: score}, only for the benchmarks we surface.
+    scores = {benchmark: {} for benchmark in _QUALITY_COLUMNS}
+    for s in score_rows:
+        if s["benchmark"] in scores:
+            scores[s["benchmark"]][s["source_model_name"]] = s["score"]
     rows = []
     for price in price_rows:
         slug = o2a.get(price["id"], "")
         prompt = price["prompt_usd_per_mtok"]
         completion = price["completion_usd_per_mtok"]
-        rows.append({
+        row = {
             "openrouter_id": price["id"],
             "name": price["name"],
             "prompt_usd_per_mtok": prompt,
             "completion_usd_per_mtok": completion,
             "blended_usd_per_mtok": _blend(prompt, completion),
-            "aa_intelligence_index": intelligence.get(slug, "") if slug else "",
-        })
+        }
+        for benchmark, column in _QUALITY_COLUMNS.items():
+            row[column] = scores[benchmark].get(slug, "") if slug else ""
+        rows.append(row)
     return rows
 
 

@@ -34,12 +34,18 @@ Quality data is from Artificial Analysis (<https://artificialanalysis.ai>) — a
 | `data/openrouter-prices.csv` | One row per model. Token prices in **USD per 1M tokens**; `*_usd` columns are OpenRouter's native per-unit (per request/image) values. Currency: USD. |
 | `data/scores-artificialanalysis.csv` | Long format: one row per model × benchmark (AA `slug` as the key). |
 | `data/model-id-map.csv` | Hand-curated `openrouter_id,aa_slug`. The join key between the two sources. |
-| `data/price-vs-quality.csv` | Derived: blended price (`(3*prompt+1*completion)/4`) + AA intelligence index. |
+| `data/price-vs-quality.csv` | Derived: blended price (`(3*prompt+1*completion)/4`) + AA intelligence index + `aa_tau2` (τ²-Bench tool-use reliability) + `aa_terminalbench_hard` (agentic terminal tasks). |
 
 ## Cheapest equal-quality lookup
 
 Sort `price-vs-quality.csv` by `blended_usd_per_mtok` among rows with
 `aa_intelligence_index >= N` to find the cheapest model at a quality floor.
+
+For an **every-turn, tool-using** route (e.g. the gateway's `main`), the
+Intelligence Index alone is misleading — sort/filter on `aa_tau2` (tool-use /
+function-calling reliability) too. The 2026-05-22 route re-pick turned on exactly
+this: gpt-5-mini's high reputation hid a low tau2 (0.684) vs deepseek-v4-flash
+(0.950) at a fifth of the price. See `docs/journal/2026-05-22-model-route-repick-tool-use.md`.
 
 ## Tests
 

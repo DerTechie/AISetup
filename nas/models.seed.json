@@ -1,0 +1,67 @@
+[
+  {
+    "model_name": "main",
+    "litellm_params": {
+      "model": "openrouter/deepseek/deepseek-v4-flash",
+      "api_key": "os.environ/OPENROUTER_API_KEY",
+      "max_tokens": 8000,
+      "max_budget": 50,
+      "budget_duration": "30d"
+    },
+    "model_info": {
+      "description": "Default brain: cheap cloud (DeepSeek V4 Flash), every turn. Re-picked 2026-05-22 from gpt-5-mini (dominated on price/AA-II/tau2). 1M context. $50 of the EUR100 split."
+    }
+  },
+  {
+    "model_name": "private",
+    "litellm_params": {
+      "model": "ollama_chat/qwen3.6:27b",
+      "api_base": "http://10.63.0.32:11434",
+      "keep_alive": -1,
+      "reasoning_effort": "none",
+      "num_ctx": 65536
+    },
+    "model_info": {
+      "description": "On-device local (Mac M2 Max): privacy / EUR0 / bulk; slow, uncapped, always available. num_ctx 65536 = Hermes main-model floor. Also the main->budget-cap fallback target."
+    }
+  },
+  {
+    "model_name": "aux-local",
+    "litellm_params": {
+      "model": "ollama_chat/qwen3:4b-instruct-2507-q4_K_M",
+      "api_base": "http://10.63.0.29:11434",
+      "keep_alive": "10m",
+      "input_cost_per_token": 0,
+      "output_cost_per_token": 0
+    },
+    "model_info": {
+      "description": "Hermes text aux tasks: local 4B on the Arch 7900XTX (on-device, EUR0, logged but never counts against the cap)."
+    }
+  },
+  {
+    "model_name": "deep",
+    "litellm_params": {
+      "model": "openrouter/google/gemini-3.1-pro-preview",
+      "api_key": "os.environ/OPENROUTER_API_KEY",
+      "max_tokens": 8000,
+      "max_budget": 35,
+      "budget_duration": "30d"
+    },
+    "model_info": {
+      "description": "Heavy research: Gemini 3.1 Pro (promoted from fallback 2026-05-22; old gpt-5 deep was dominated). 1M context. $35 of the EUR100 split."
+    }
+  },
+  {
+    "model_name": "deep-fallback",
+    "litellm_params": {
+      "model": "openrouter/openai/gpt-5",
+      "api_key": "os.environ/OPENROUTER_API_KEY",
+      "max_tokens": 8000,
+      "max_budget": 15,
+      "budget_duration": "30d"
+    },
+    "model_info": {
+      "description": "Used only if deep (Gemini) errors/outage. GPT-5: weaker but first-party-served (OpenAI+Azure) = high availability for outage insurance. $15 of the EUR100 split."
+    }
+  }
+]

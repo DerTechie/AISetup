@@ -19,6 +19,11 @@ services:
     environment:
       DATABASE_URL: postgresql://litellm:${POSTGRES_PASSWORD}@litellm-db:5432/litellm
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      # Encrypts API keys stored in the DB (store_model_in_db). DB-stored models do NOT
+      # resolve `os.environ/...` refs at call time the way config models do, so their keys
+      # are stored as encrypted literals — this salt derives the encryption key. Set once,
+      # NEVER change it (changing it breaks decryption of every stored credential).
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       UI_USERNAME: ${UI_USERNAME}
       UI_PASSWORD: ${UI_PASSWORD}
