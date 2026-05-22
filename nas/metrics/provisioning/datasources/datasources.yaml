@@ -14,9 +14,11 @@ datasources:
     access: proxy
     # Reached over the gateway stack's external Docker network (joined in docker-compose.yml).
     url: litellm-db:5432
-    database: litellm
     user: grafana_ro
     jsonData:
+      # Grafana 11+ reads the SQL database name from jsonData.database; the old
+      # top-level `database:` field is ignored for Postgres ("no default database").
+      database: litellm
       sslmode: disable
       postgresVersion: 1600
     secureJsonData:
