@@ -1,0 +1,31 @@
+# Receives Claude Code OTLP metrics (from Arch) and re-exposes them as Prometheus
+# metrics for Prometheus to scrape. The collector decouples the bursty Claude Code
+# CLI from Prometheus's pull model and is the single egress that could later also
+# forward Claude Code traces to Langfuse.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    # Promote OTLP resource attributes (service.name, host, etc.) to metric labels.
+    resource_to_telemetry_conversion:
+      enabled: true
+
+service:
+  telemetry:
+    logs:
+      level: info
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]
