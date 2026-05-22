@@ -1,0 +1,102 @@
+{
+  "title": "Gateway Usage & Cost",
+  "uid": "gateway-usage",
+  "schemaVersion": 39,
+  "editable": true,
+  "time": { "from": "now-30d", "to": "now" },
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "30-day spend (USD) vs $100 cap",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "litellm-pg" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(SUM(spend),0) AS spend_usd FROM \"LiteLLM_SpendLogs\" WHERE \"startTime\" > NOW() - INTERVAL '30 days';"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Spend over time (USD)",
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "litellm-pg" },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" } },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(\"startTime\",'1h'), \"model_group\" AS metric, SUM(spend) AS spend FROM \"LiteLLM_SpendLogs\" WHERE $__timeFilter(\"startTime\") GROUP BY 1, \"model_group\" ORDER BY 1;"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "By route (30d): spend, requests, tokens",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "postgres", "uid": "litellm-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT \"model_group\" AS route, ROUND(SUM(spend)::numeric,4) AS spend_usd, COUNT(*) AS requests, SUM(total_tokens) AS tokens FROM \"LiteLLM_SpendLogs\" WHERE \"startTime\" > NOW() - INTERVAL '30 days' GROUP BY 1 ORDER BY spend_usd DESC;"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "piechart",
+      "title": "Local vs cloud requests (30d)",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
+      "datasource": { "type": "postgres", "uid": "litellm-pg" },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT CASE WHEN \"model_group\" IN ('private','aux-local') THEN 'local' ELSE 'cloud' END AS category, COUNT(*) AS requests FROM \"LiteLLM_SpendLogs\" WHERE \"startTime\" > NOW() - INTERVAL '30 days' GROUP BY 1;"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Avg latency by route (ms)",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 },
+      "datasource": { "type": "postgres", "uid": "litellm-pg" },
+      "fieldConfig": { "defaults": { "unit": "ms" } },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(\"startTime\",'1h'), \"model_group\" AS metric, AVG(\"request_duration_ms\") AS avg_ms FROM \"LiteLLM_SpendLogs\" WHERE $__timeFilter(\"startTime\") AND \"request_duration_ms\" IS NOT NULL GROUP BY 1, \"model_group\" ORDER BY 1;"
+        }
+      ]
+    }
+  ]
+}
