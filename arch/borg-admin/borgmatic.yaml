@@ -12,11 +12,11 @@ repositories:
 encryption_passcommand: "op read 'op://Der Techie/Borg passphrase - AISetup repo/password' 2>/dev/null || echo $BORG_PASSPHRASE"
 
 # Same retention contract as nas/borgmatic/borgmatic.yaml — but ENFORCED here.
-retention:
-  keep_daily: 7
-  keep_weekly: 4
-  keep_monthly: 12
-  keep_yearly: 3
+# borgmatic 2.x: keep_* at top level (the `retention:` section is deprecated).
+keep_daily: 7
+keep_weekly: 4
+keep_monthly: 12
+keep_yearly: 3
 
 # Monthly deep check — verify-data reads & decrypts every chunk in the repo,
 # catching silent corruption that the fast structural check would miss.

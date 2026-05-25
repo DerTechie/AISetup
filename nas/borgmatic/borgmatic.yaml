@@ -52,11 +52,11 @@ ssh_command: ssh -p 23 -i /root/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-
 # Retention is enforced from Arch (admin key). Borgmatic on the NAS does NOT
 # run prune (the append-only writer key can't anyway). Documenting numbers
 # here for cross-reference; arch/borg-admin/borgmatic.yaml is the active copy.
-retention:
-  keep_daily: 7
-  keep_weekly: 4
-  keep_monthly: 12
-  keep_yearly: 3
+# borgmatic 2.x: keep_* at top level (the `retention:` section is deprecated).
+keep_daily: 7
+keep_weekly: 4
+keep_monthly: 12
+keep_yearly: 3
 
 # Pre-backup database dumps — Borgmatic native hooks. Each dump is included
 # in the archive and removed locally after borg create.
@@ -92,12 +92,20 @@ postgresql_databases:
     password: ${IMMICH_PG_PASSWORD}
     format: custom
 
-clickhouse_databases:
-  - name: default
-    hostname: clickhouse          # service name inside langfuse_default
-    port: 9000
-    username: clickhouse
-    password: ${CLICKHOUSE_PASSWORD}
+# KNOWN GAP: borgmatic 2.x does not have a built-in clickhouse_databases hook
+# (only postgresql/mysql/mongodb/sqlite). Until we wire a custom before_actions
+# hook for `clickhouse-client BACKUP`, ClickHouse is captured ONLY at the
+# filesystem layer via the /source/nvme/langfuse/clickhouse-data source mount.
+# Risk: file-level capture of a live ClickHouse data dir may include partially
+# written merge files that restore inconsistently. Mitigation for now is the
+# ZFS snapshot taken at 03:00 (atomic at the FS layer), then borg create at 05:00
+# reads from that snapshot — limits the inconsistency window.
+# clickhouse_databases:
+#   - name: default
+#     hostname: clickhouse          # service name inside langfuse_default
+#     port: 9000
+#     username: clickhouse
+#     password: ${CLICKHOUSE_PASSWORD}
 
 # MinIO needs no dump — Borg dedup handles object-store files efficiently;
 # /source/nvme/langfuse/minio-data is in source_directories.
