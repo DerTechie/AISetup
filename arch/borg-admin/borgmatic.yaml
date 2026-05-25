@@ -15,6 +15,14 @@ retention:
   keep_monthly: 12
   keep_yearly: 3
 
+# Monthly deep check — verify-data reads & decrypts every chunk in the repo,
+# catching silent corruption that the fast structural check would miss.
+# Expensive: hours on a large repo and saturates upload. Worth it once a month.
+checks:
+  - name: repository
+  - name: archives
+  - name: data
+
 # Use the admin SSH key. Port 23.
 ssh_command: ssh -p 23 -i ~/.ssh/borg-admin-arch -o StrictHostKeyChecking=accept-new
 

@@ -38,8 +38,8 @@ Escrow per spec §8 Phase 3 step 3: password manager + printed paper + encrypted
 # List archives:
 borgmatic --config ~/.config/borg-admin/borgmatic.yaml list
 
-# Browse contents of an archive:
-borgmatic --config ~/.config/borg-admin/borgmatic.yaml borg -- mount ::ARCHIVE /mnt/borg-restore
+# Browse contents of an archive (borgmatic's first-class mount action — honors config):
+borgmatic --config ~/.config/borg-admin/borgmatic.yaml mount --archive ARCHIVE --mount-point /mnt/borg-restore
 
 # Dry-run prune:
 borgmatic --config ~/.config/borg-admin/borgmatic.yaml --dry-run prune

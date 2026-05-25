@@ -14,6 +14,7 @@ firewall fence around it. The gateway that calls this Ollama runs on the **NAS**
 | `nftables-ollama-guard.nft` | `/etc/nftables-ollama-guard.nft` | Restrict `:11434` to localhost + the NAS gateway (`10.63.0.2`). |
 | `ollama-guard.service` | `/etc/systemd/system/ollama-guard.service` | Load the nft guard at boot (it is otherwise runtime-only). |
 | `claude-code-otel.sh` | sourced from shell profile | Ship Claude Code OTel usage/cost metrics to the NAS collector. |
+| [`borg-admin/`](borg-admin/) | `~/.config/borg-admin/` + `~/.config/systemd/user/` | Admin-side Borg ops (prune, deep check, restore) holding the unrestricted key the NAS never sees. |
 
 ## Install
 
