@@ -1,0 +1,11 @@
+[Unit]
+Description=Monthly Borgmatic deep check (first Sunday 10:00)
+
+[Timer]
+# systemd's "first Sunday of the month" idiom:
+OnCalendar=Sun *-*-1..7 10:00:00
+Persistent=true
+Unit=borgmatic-check.service
+
+[Install]
+WantedBy=timers.target

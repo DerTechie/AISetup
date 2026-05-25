@@ -1,0 +1,29 @@
+# Borgmatic config — Arch admin-side. Used for prune (weekly) and full check
+# (monthly), plus ad-hoc restore. Does NOT create archives — that's the NAS
+# stack's job.
+
+repositories:
+  - path: ssh://u123456@u123456.your-storagebox.de:23/./borg-repo
+    label: hetzner-bx21
+
+encryption_passcommand: "pass borg/aisetup-passphrase || echo $BORG_PASSPHRASE"
+
+# Same retention contract as nas/borgmatic/borgmatic.yaml — but ENFORCED here.
+retention:
+  keep_daily: 7
+  keep_weekly: 4
+  keep_monthly: 12
+  keep_yearly: 3
+
+# Use the admin SSH key. Port 23.
+ssh_command: ssh -p 23 -i ~/.ssh/borg-admin-arch -o StrictHostKeyChecking=accept-new
+
+# Failure notification — same ntfy topic as NAS, so a missed prune still
+# pages.
+ntfy:
+  topic: ${NTFY_TOPIC}
+  server: https://ntfy.sh
+  fail:
+    title: "[backup] arch admin op FAILED"
+    message: "borgmatic admin op FAILED on arch"
+    priority: max

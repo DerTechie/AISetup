@@ -1,0 +1,9 @@
+[Unit]
+Description=Borgmatic prune + compact (admin key, Hetzner BX21)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/borg-admin/env
+ExecStart=/usr/bin/borgmatic --config %h/.config/borg-admin/borgmatic.yaml --verbosity 1 prune compact

@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly Borgmatic prune (Sun 09:00)
+
+[Timer]
+OnCalendar=Sun *-*-* 09:00:00
+Persistent=true
+Unit=borgmatic-prune.service
+
+[Install]
+WantedBy=timers.target
