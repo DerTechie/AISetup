@@ -1,0 +1,132 @@
+# Borgmatic config — NAS-wide nightly archive to Hetzner BX21.
+# One archive contains every protected dataset; Borg dedup makes this efficient.
+# Pre-hooks dump Postgres + ClickHouse to consistent snapshots before borg create.
+
+source_directories:
+  - /source/nvme/dockge
+  - /source/nvme/n8n
+  - /source/nvme/paperless-ngx
+  - /source/nvme/immich
+  - /source/nvme/nginx-proxy-manager
+  - /source/nvme/pihole
+  - /source/nvme/joplin
+  - /source/nvme/litellm
+  - /source/nvme/langfuse
+  - /source/nvme/metrics
+  - /source/nvme/forgejo               # remove until Forgejo lands if mount missing
+  - /source/tank/immich-data
+  - /source/tank/paperless-ngx
+  - /source/tank/storage
+  - /source/tank/forgejo-lfs           # remove until Forgejo lands if mount missing
+
+# Exclude regrowing logs + transient state. Glob patterns avoid PG internals
+# (pg_log uses different name; pg_wal / pg_xact are not matched and stay safe).
+exclude_patterns:
+  - /source/nvme/langfuse/clickhouse-logs
+  - '**/cache/**'
+  - '**/Cache/**'
+  - '**/tmp/**'
+  - '**/log/**'
+  - '**/logs/**'
+  - '**/*.log'
+  - '**/transcode-cache/**'
+
+repositories:
+  - path: ssh://u123456@u123456.your-storagebox.de:23/./borg-repo
+    label: hetzner-bx21
+
+encryption_passcommand: "echo $BORG_PASSPHRASE"
+
+# Archive naming: hostname-timestamp lets borg list show calendar history.
+archive_name_format: 'nas-aisetup-{now:%Y-%m-%dT%H:%M:%S}'
+
+# Compression: lz4 default; switch to zstd,3 for slightly better ratio at
+# negligible CPU cost on the NAS.
+compression: zstd,3
+
+# SSH options — explicit port + key inside the container.
+ssh_command: ssh -p 23 -i /root/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new
+
+# Retention is enforced from Arch (admin key). Borgmatic on the NAS does NOT
+# run prune (the append-only writer key can't anyway). Documenting numbers
+# here for cross-reference; arch/borg-admin/borgmatic.yaml is the active copy.
+retention:
+  keep_daily: 7
+  keep_weekly: 4
+  keep_monthly: 12
+  keep_yearly: 3
+
+# Pre-backup database dumps — Borgmatic native hooks. Each dump is included
+# in the archive and removed locally after borg create.
+postgresql_databases:
+  - name: litellm
+    hostname: litellm-db
+    port: 5432
+    username: litellm
+    password: ${LITELLM_PG_PASSWORD}
+    format: custom
+  - name: langfuse
+    hostname: postgres            # service name inside langfuse_default
+    port: 5432
+    username: langfuse
+    password: ${LANGFUSE_PG_PASSWORD}
+    format: custom
+  - name: n8n
+    hostname: n8n-postgres        # adjust to actual service name on first deploy
+    port: 5432
+    username: n8n
+    password: ${N8N_PG_PASSWORD}
+    format: custom
+  - name: paperless
+    hostname: paperless-db        # adjust on first deploy
+    port: 5432
+    username: paperless
+    password: ${PAPERLESS_PG_PASSWORD}
+    format: custom
+  - name: immich
+    hostname: immich-postgres     # adjust on first deploy
+    port: 5432
+    username: immich
+    password: ${IMMICH_PG_PASSWORD}
+    format: custom
+  # Forgejo block — uncomment when Forgejo ships:
+  # - name: forgejo
+  #   hostname: forgejo-db
+  #   port: 5432
+  #   username: forgejo
+  #   password: ${FORGEJO_PG_PASSWORD}
+  #   format: custom
+
+clickhouse_databases:
+  - name: default
+    hostname: clickhouse          # service name inside langfuse_default
+    port: 9000
+    username: clickhouse
+    password: ${CLICKHOUSE_PASSWORD}
+
+# MinIO needs no dump — Borg dedup handles object-store files efficiently;
+# /source/nvme/langfuse/minio-data is in source_directories.
+
+# Notification hooks: on_error -> ntfy push; on success -> healthchecks ping.
+ntfy:
+  topic: ${NTFY_TOPIC}
+  server: https://ntfy.sh
+  start:
+    title: "[backup] nightly start"
+    message: "borgmatic create starting on nas-aisetup"
+    priority: low
+  finish:
+    title: "[backup] nightly OK"
+    message: "borgmatic create completed; archive added"
+    priority: low
+  fail:
+    title: "[backup] FAILED"
+    message: "borgmatic FAILED on nas-aisetup — investigate"
+    priority: max
+
+healthchecks:
+  ping_url: ${HEALTHCHECKS_PING_URL}
+  send_logs: true
+  states:
+    - finish
+    - fail

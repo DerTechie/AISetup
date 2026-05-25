@@ -1,0 +1,66 @@
+# Borgmatic — orchestrates nightly Borg archive to the Hetzner Storage Box.
+# Deploy as its own Dockge stack on a NAS pool path (10.63.0.2). Container has
+# read-only source mounts; the writer SSH key is mounted 0600. The container
+# joins LiteLLM / Langfuse / n8n / Forgejo (where present) Docker networks so
+# Borgmatic's pre-hooks can reach their Postgres + ClickHouse instances for
+# native dumps.
+services:
+  borgmatic:
+    image: ghcr.io/borgmatic-collective/borgmatic:latest
+    restart: always
+    hostname: nas-aisetup
+    environment:
+      TZ: Europe/Berlin
+      # Cron line baked into the container entrypoint — daily 05:00, plus a
+      # weekly Sun 06:00 repo-only check (read-OK with the append-only key).
+      BORGMATIC_CRON: |
+        0 5 * * *  root  borgmatic --verbosity 1 create
+        0 6 * * 0  root  borgmatic --verbosity 1 check --only repository
+      BORG_PASSPHRASE: ${BORG_PASSPHRASE}
+      # Pre-hook DB creds (used inside borgmatic.yaml):
+      LITELLM_PG_PASSWORD:  ${LITELLM_PG_PASSWORD}
+      LANGFUSE_PG_PASSWORD: ${LANGFUSE_PG_PASSWORD}
+      N8N_PG_PASSWORD:      ${N8N_PG_PASSWORD}
+      PAPERLESS_PG_PASSWORD: ${PAPERLESS_PG_PASSWORD}
+      IMMICH_PG_PASSWORD:   ${IMMICH_PG_PASSWORD}
+      FORGEJO_PG_PASSWORD:  ${FORGEJO_PG_PASSWORD}     # blank until Forgejo lands
+      CLICKHOUSE_PASSWORD:  ${CLICKHOUSE_PASSWORD}
+      # Failure-path hooks:
+      NTFY_TOPIC:          ${NTFY_TOPIC}
+      HEALTHCHECKS_PING_URL: ${HEALTHCHECKS_PING_URL}
+    volumes:
+      # Config:
+      - ./borgmatic.yaml:/etc/borgmatic/config.yaml:ro
+      # Writer SSH key (host-side perms 0600, root-owned):
+      - /mnt/nvme/apps/borgmatic/secrets/borg-writer-nas:/root/.ssh/id_ed25519:ro
+      - /mnt/nvme/apps/borgmatic/secrets/borg-writer-nas.pub:/root/.ssh/id_ed25519.pub:ro
+      # Local Borg cache + state (persistent so dedup index isn't rebuilt every run):
+      - /mnt/nvme/apps/borgmatic/borg-cache:/root/.cache/borg
+      - /mnt/nvme/apps/borgmatic/borg-config:/root/.config/borg
+      # Source datasets (READ-ONLY — backup must never mutate live):
+      - /mnt/nvme/apps/dockge:/source/nvme/dockge:ro
+      - /mnt/nvme/apps/n8n:/source/nvme/n8n:ro
+      - /mnt/nvme/apps/paperless-ngx:/source/nvme/paperless-ngx:ro
+      - /mnt/nvme/apps/immich:/source/nvme/immich:ro
+      - /mnt/nvme/apps/nginx-proxy-manager:/source/nvme/nginx-proxy-manager:ro
+      - /mnt/nvme/apps/pihole:/source/nvme/pihole:ro
+      - /mnt/nvme/apps/joplin:/source/nvme/joplin:ro
+      - /mnt/nvme/apps/litellm:/source/nvme/litellm:ro
+      - /mnt/nvme/apps/langfuse:/source/nvme/langfuse:ro
+      - /mnt/nvme/apps/metrics:/source/nvme/metrics:ro
+      - /mnt/nvme/apps/forgejo:/source/nvme/forgejo:ro     # may be missing pre-Forgejo
+      - /mnt/tank/apps/immich/data:/source/tank/immich-data:ro
+      - /mnt/tank/apps/paperless-ngx:/source/tank/paperless-ngx:ro
+      - /mnt/tank/storage:/source/tank/storage:ro
+      - /mnt/tank/apps/forgejo/lfs:/source/tank/forgejo-lfs:ro   # may be missing pre-Forgejo
+    networks:
+      - litellm_default          # for pg_dump against litellm-db
+      - langfuse_default         # for pg_dump + clickhouse-client
+      - n8n_default              # for pg_dump (TrueNAS-app network name TBD; fix on first deploy)
+      - forgejo_default          # when present
+
+networks:
+  litellm_default:  { external: true }
+  langfuse_default: { external: true }
+  n8n_default:      { external: true }
+  forgejo_default:  { external: true }
