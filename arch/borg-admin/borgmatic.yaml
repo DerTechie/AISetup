@@ -6,10 +6,12 @@ repositories:
   - path: ssh://u600186@u600186.your-storagebox.de:23/./borg-repo
     label: hetzner-bx21
 
-# Passphrase via 1Password CLI (biometric integration when GUI session is up),
-# falling back to BORG_PASSPHRASE env var set by the systemd unit's EnvironmentFile
-# for timer runs that fire when the desktop isn't unlocked.
-encryption_passcommand: "op read 'op://Der Techie/Borg passphrase - AISetup repo/password' 2>/dev/null || echo $BORG_PASSPHRASE"
+# Passphrase via a small wrapper script (~/.local/bin/borg-get-passphrase).
+# The script tries `op read` first (works when 1Password desktop session is up)
+# and falls back to the BORG_PASSPHRASE env var that systemd's EnvironmentFile
+# provides for timer runs. We don't inline the shell here because Borg shlex-splits
+# BORG_PASSCOMMAND before exec'ing, which mangles single-quoted paths with spaces.
+encryption_passcommand: /home/dertechie/.local/bin/borg-get-passphrase
 
 # Same retention contract as nas/borgmatic/borgmatic.yaml — but ENFORCED here.
 # borgmatic 2.x: keep_* at top level (the `retention:` section is deprecated).

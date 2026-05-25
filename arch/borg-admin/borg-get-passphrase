@@ -1,0 +1,7 @@
+#!/bin/bash
+# Borg passphrase retrieval helper.
+# Tries 1Password CLI first (works when desktop session is unlocked),
+# falls back to BORG_PASSPHRASE env var (set by systemd EnvironmentFile for timer runs).
+# Used as encryption_passcommand in ~/.config/borg-admin/borgmatic.yaml.
+# Install to ~/.local/bin/ mode 755.
+op read "op://Der Techie/Borg passphrase - AISetup repo/password" 2>/dev/null || echo "$BORG_PASSPHRASE"
