@@ -21,7 +21,7 @@ services:
       - "--storage.tsdb.retention.time=1y"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
+      - /mnt/nvme/apps/metrics/prometheus-data:/prometheus
     networks:
       - metrics                # :9090 stays internal (no ports: published)
 
@@ -38,7 +38,7 @@ services:
       GRAFANA_DB_RO_PASSWORD: ${GRAFANA_DB_RO_PASSWORD}   # consumed by the provisioned Postgres datasource
     volumes:
       - ./provisioning:/etc/grafana/provisioning:ro
-      - grafana-data:/var/lib/grafana
+      - /mnt/nvme/apps/metrics/grafana-data:/var/lib/grafana
     networks:
       - metrics
       - gateway               # reach litellm-db on the gateway stack's network
@@ -48,7 +48,3 @@ networks:
   gateway:
     external: true
     name: ${GATEWAY_NETWORK}  # e.g. litellm_default — confirm with `docker network ls`
-
-volumes:
-  prometheus-data:
-  grafana-data:
