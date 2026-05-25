@@ -8,16 +8,16 @@ pushes one deduplicated archive to a Hetzner Storage Box BX21 over SSH port 23.
 ## Hetzner Storage Box
 
 - **Plan:** BX21 (5 TB, ~€10.50/mo)
-- **Host:** `u123456.your-storagebox.de`
-- **User:** `u123456`
+- **Host:** `u600186.your-storagebox.de`
+- **User:** `u600186`
 - **Port:** **23** (Hetzner quirk — not 22)
-- **Repo path:** `/home/u123456/borg-repo` → `ssh://u123456@u123456.your-storagebox.de:23/./borg-repo`
+- **Repo path:** `/home/u600186/borg-repo` → `ssh://u600186@u600186.your-storagebox.de:23/./borg-repo`
 
 ## Two-key model (ransomware defense)
 
 | Key | Where it lives | Capability |
 |---|---|---|
-| `borg-writer-nas` | NAS (`/mnt/nvme/apps/borgmatic/secrets/`, mode 0600) | Create archives only. Cannot delete. Storage Box `authorized_keys` line: `command="borg serve --append-only --restrict-to-path /home/u123456/borg-repo",no-port-forwarding,no-X11-forwarding,no-pty <pub>` |
+| `borg-writer-nas` | NAS (`/mnt/nvme/apps/borgmatic/secrets/`, mode 0600) | Create archives only. Cannot delete. Storage Box `authorized_keys` line: `command="borg serve --append-only --restrict-to-path /home/u600186/borg-repo",no-port-forwarding,no-X11-forwarding,no-pty <pub>` |
 | `borg-admin-arch` | Arch (`~/.ssh/`, mode 0600) | Unrestricted. Prune, compact, deep verify, restore. Never installed on the NAS. |
 
 **Pruning runs from Arch only.** If the NAS could prune, ransomware-on-NAS could destroy history. Don't break this rule.
@@ -36,7 +36,7 @@ offsite only.
 The container joins:
 - `litellm_default` — for `pg_dump` against `litellm-db:5432`.
 - `langfuse_default` — for `pg_dump` against `postgres:5432` + `clickhouse-client BACKUP` against `clickhouse:9000`.
-- `n8n_default` / `paperless_*_default` / `immich_*_default` / `forgejo_default` (when present).
+- `n8n_default` / `paperless_*_default` / `immich_*_default` for their respective pre-hooks.
 
 Confirm service names match `borgmatic.yaml`'s `postgresql_databases.*.hostname` before first run — TrueNAS apps sometimes pick non-obvious container names.
 

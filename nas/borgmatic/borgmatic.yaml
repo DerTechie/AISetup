@@ -9,20 +9,22 @@ source_directories:
   - /source/nvme/immich
   - /source/nvme/nginx-proxy-manager
   - /source/nvme/pihole
-  - /source/nvme/joplin
   - /source/nvme/litellm
   - /source/nvme/langfuse
   - /source/nvme/metrics
-  - /source/nvme/forgejo               # remove until Forgejo lands if mount missing
   - /source/tank/immich-data
   - /source/tank/paperless-ngx
   - /source/tank/storage
-  - /source/tank/forgejo-lfs           # remove until Forgejo lands if mount missing
 
-# Exclude regrowing logs + transient state. Glob patterns avoid PG internals
-# (pg_log uses different name; pg_wal / pg_xact are not matched and stay safe).
+# Exclude regrowing logs + transient state + by-policy excludes.
+# Glob patterns avoid PG internals (pg_log uses a different name;
+# pg_wal / pg_xact are not matched and stay safe).
 exclude_patterns:
   - /source/nvme/langfuse/clickhouse-logs
+  # Paperless trash + ingest-staging — backing these up defeats their purpose.
+  # See memory: backup-policy-no-trash-no-consume.
+  - /source/tank/paperless-ngx/trash
+  - /source/tank/paperless-ngx/consume
   - '**/cache/**'
   - '**/Cache/**'
   - '**/tmp/**'
@@ -32,7 +34,7 @@ exclude_patterns:
   - '**/transcode-cache/**'
 
 repositories:
-  - path: ssh://u123456@u123456.your-storagebox.de:23/./borg-repo
+  - path: ssh://u600186@u600186.your-storagebox.de:23/./borg-repo
     label: hetzner-bx21
 
 encryption_passcommand: "echo $BORG_PASSPHRASE"
@@ -89,13 +91,6 @@ postgresql_databases:
     username: immich
     password: ${IMMICH_PG_PASSWORD}
     format: custom
-  # Forgejo block — uncomment when Forgejo ships:
-  # - name: forgejo
-  #   hostname: forgejo-db
-  #   port: 5432
-  #   username: forgejo
-  #   password: ${FORGEJO_PG_PASSWORD}
-  #   format: custom
 
 clickhouse_databases:
   - name: default

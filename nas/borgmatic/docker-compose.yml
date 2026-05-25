@@ -23,7 +23,6 @@ services:
       N8N_PG_PASSWORD:      ${N8N_PG_PASSWORD}
       PAPERLESS_PG_PASSWORD: ${PAPERLESS_PG_PASSWORD}
       IMMICH_PG_PASSWORD:   ${IMMICH_PG_PASSWORD}
-      FORGEJO_PG_PASSWORD:  ${FORGEJO_PG_PASSWORD}     # blank until Forgejo lands
       CLICKHOUSE_PASSWORD:  ${CLICKHOUSE_PASSWORD}
       # Failure-path hooks:
       NTFY_TOPIC:          ${NTFY_TOPIC}
@@ -44,23 +43,18 @@ services:
       - /mnt/nvme/apps/immich:/source/nvme/immich:ro
       - /mnt/nvme/apps/nginx-proxy-manager:/source/nvme/nginx-proxy-manager:ro
       - /mnt/nvme/apps/pihole:/source/nvme/pihole:ro
-      - /mnt/nvme/apps/joplin:/source/nvme/joplin:ro
       - /mnt/nvme/apps/litellm:/source/nvme/litellm:ro
       - /mnt/nvme/apps/langfuse:/source/nvme/langfuse:ro
       - /mnt/nvme/apps/metrics:/source/nvme/metrics:ro
-      - /mnt/nvme/apps/forgejo:/source/nvme/forgejo:ro     # may be missing pre-Forgejo
       - /mnt/tank/apps/immich/data:/source/tank/immich-data:ro
       - /mnt/tank/apps/paperless-ngx:/source/tank/paperless-ngx:ro
       - /mnt/tank/storage:/source/tank/storage:ro
-      - /mnt/tank/apps/forgejo/lfs:/source/tank/forgejo-lfs:ro   # may be missing pre-Forgejo
     networks:
       - litellm_default          # for pg_dump against litellm-db
       - langfuse_default         # for pg_dump + clickhouse-client
       - n8n_default              # for pg_dump (TrueNAS-app network name TBD; fix on first deploy)
-      - forgejo_default          # when present
 
 networks:
   litellm_default:  { external: true }
   langfuse_default: { external: true }
   n8n_default:      { external: true }
-  forgejo_default:  { external: true }
