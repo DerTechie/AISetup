@@ -63,8 +63,10 @@ services:
       - /mnt/nvme/apps/litellm:/source/nvme/litellm:ro
       - /mnt/nvme/apps/langfuse:/source/nvme/langfuse:ro
       - /mnt/nvme/apps/metrics:/source/nvme/metrics:ro
+      - /mnt/nvme/apps/forgejo:/source/nvme/forgejo:ro
       - /mnt/tank/apps/immich/data:/source/tank/immich-data:ro
       - /mnt/tank/apps/paperless-ngx:/source/tank/paperless-ngx:ro
+      - /mnt/tank/apps/forgejo/lfs:/source/tank/forgejo-lfs:ro
       - /mnt/tank/storage:/source/tank/storage:ro
     networks:
       - litellm_default                          # native pg_dump against litellm-db (pg 16)
