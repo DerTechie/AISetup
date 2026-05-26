@@ -1,5 +1,7 @@
 # Hybrid Local/Cloud AI Agent Setup
 
+> **Canonical source: this repo lives on a self-hosted Forgejo (Wireguard-only, solo-mode).** The GitHub copy is a read-only mirror, pushed on every commit. Issues, PRs, and the wiki are disabled here. Public contributions aren't open yet. See [`docs/superpowers/specs/2026-05-25-self-hosted-forgejo-design.md`](docs/superpowers/specs/2026-05-25-self-hosted-forgejo-design.md) for the why.
+
 A hybrid AI-agent infrastructure with a **fast cloud brain** for everyday speed, an **on-device model** for work that must stay private or free, and **frontier reasoning** for genuinely hard tasks — with a hard cost ceiling and full visibility into which model handled what.
 
 > **Status:** Phase 1 (routing gateway) complete; routes redesigned to role-based names (`main`/`private`/`deep`) with a fast-cloud default brain — see the [redesign spec](docs/superpowers/specs/2026-05-20-model-route-roles-redesign.md). Phase 2 (triage advisor) — script + judge verified live; Hermes-side integration pending. See the [decision journal](docs/journal/).
