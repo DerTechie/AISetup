@@ -37,16 +37,15 @@ services:
   prices-refresher:
     build: ./prices-refresher
     restart: always
-    # `host.docker.internal` + the host-gateway alias lets the sidecar reach the LiteLLM
-    # gateway via the host port (4000), independent of which Docker network or compose
-    # project owns the LiteLLM container. Intra-compose DNS (`http://litellm:4000`) was
-    # tried first but failed with Connection refused — the live LiteLLM container is on a
-    # different network than this sidecar (e.g. when TrueNAS Scale's app system owns the
-    # litellm stack and this compose project owns only the sidecar).
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    depends_on:
+      - litellm
     environment:
-      LITELLM_GATEWAY_URL: http://host.docker.internal:4000
+      # Intra-compose DNS — both services share the default network.
+      # Note: depends_on waits for the container to exist, not for the port to listen, so
+      # the very first tick after a fresh `up` can race ahead of LiteLLM's startup. The
+      # recovery is `sudo docker compose restart prices-refresher` once LiteLLM is stable
+      # (also the documented "refresh now" knob in docs/runbook.md).
+      LITELLM_GATEWAY_URL: http://litellm:4000
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       # 3600s = 1h. OpenRouter prices move at most weekly in practice; bump if noisy.
       REFRESH_INTERVAL_SEC: "3600"
