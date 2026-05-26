@@ -352,6 +352,41 @@ stale price is less wrong than $0).
 - **Gotcha:** set `max_tokens ≥ 256` in LLM nodes, or a GPT-5 route silently falls
   back to local `qwen` (see § Common gotchas).
 
+## Forgejo (self-hosted forge)
+
+- **Where:** TrueNAS **Community Forgejo app** (not Dockge), UI at
+  `http://10.63.0.2:30142` (Wireguard-only). SSH on `:30143`. Full install
+  spec: [`../nas/forgejo/README.md`](../nas/forgejo/README.md).
+- **Start/stop/update:** TrueNAS **Apps** page. Chart pin at `15.0.2-rootless`;
+  bump via the app UI, never `latest`.
+- **Source-of-truth:** Forgejo. GitHub copies are read-only push mirrors;
+  every commit triggers an outbound push. Mirror lag is ~5 seconds.
+- **Add a new repo:** Forgejo "+" → New Migration → GitHub clone address
+  only (no PAT needed for public). **Do not** check "This repository will
+  be a mirror". That flips it to pull-mirror, not what we want. Then repo
+  Settings → Mirror Settings → Add Push Mirror, target the GitHub URL with
+  a fine-grained PAT (`Contents: read/write` on that one repo), Sync When
+  Push ✅, period `8h0m0s`. Full per-repo recipe + GitHub shopfront
+  checklist is in [`../nas/forgejo/README.md`](../nas/forgejo/README.md).
+- **Rotate the GitHub push-mirror PAT:** generate a new fine-grained PAT
+  (`Contents: read/write`, scoped to the one repo, 1-year expiry); in
+  Forgejo's Mirror Settings, edit the existing mirror entry and replace
+  the password field; click ▶ Synchronize Now to confirm auth works;
+  update 1Password "Forgejo push-mirror PAT (GitHub)". Revoke the old PAT
+  on GitHub after.
+- **LFS path gotcha:** the Additional-Storage mount's container path must
+  be `/var/lib/gitea/git/lfs`, not the wizard's hint `/data/git/lfs`. The
+  chart's `APP_DATA_PATH` is `/var/lib/gitea` and Forgejo writes LFS to
+  `${APP_DATA_PATH}/git/lfs`. Mounting anywhere else routes LFS objects to
+  NVMe instead of the HDD pool. Verify with
+  `sudo docker inspect ix-forgejo-forgejo-1 --format '{{range .Mounts}}{{println .Destination .Source}}{{end}}' | grep lfs`.
+- **Backups:** datasets `nvme/apps/forgejo` (Class M, 5 recursive snapshot
+  tasks) + `tank/apps/forgejo` (Class B, 3 recursive); replication to
+  `tank/replica/nvme-apps/forgejo`; Borg includes both via
+  `nas/borgmatic/`. The Postgres pg_dump hook is committed-but-commented
+  in `nas/borgmatic/borgmatic.yaml` until `FORGEJO_PG_PASSWORD` is set in
+  the borgmatic stack's `.env`.
+
 ## Backups — Borg offsite (restore + verification)
 
 Spec: [`superpowers/specs/2026-05-25-nas-backup-strategy-design.md`](superpowers/specs/2026-05-25-nas-backup-strategy-design.md) §6–§7.
