@@ -136,11 +136,13 @@ ntfy:
     message: "borgmatic FAILED on nas-aisetup — investigate"
     priority: max
 
-# healthchecks deadman ping — uncomment + fill HEALTHCHECKS_PING_URL in .env
-# once a check exists on healthchecks.io (plan Task 15 wires this up).
-# healthchecks:
-#   ping_url: ${HEALTHCHECKS_PING_URL}
-#   send_logs: true
-#   states:
-#     - finish
-#     - fail
+# healthchecks deadman ping — fires on every finish/fail so an entire missed
+# run (container dead, host off) is detectable as "no signal" on the dashboard.
+# ntfy alone can't catch that, since a process that never runs sends nothing.
+# Ping URL lives in .env (HEALTHCHECKS_PING_URL=https://hc-ping.com/<uuid>).
+healthchecks:
+  ping_url: ${HEALTHCHECKS_PING_URL}
+  send_logs: true
+  states:
+    - finish
+    - fail
