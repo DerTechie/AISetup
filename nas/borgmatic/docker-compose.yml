@@ -1,11 +1,15 @@
 # Borgmatic — orchestrates nightly Borg archive to the Hetzner Storage Box.
 # Deploy as its own Dockge stack on a NAS pool path (10.63.0.2). Container has
-# read-only source mounts; the writer SSH key is mounted 0600. The container
-# joins each protected service's Docker network so Borgmatic's pre-hooks can
-# reach their Postgres + ClickHouse instances for native dumps.
-# Networks: Dockge stacks use {stack}_default; TrueNAS community apps use
-# ix-internal-{app}-{app}-net (tn.network.internal label is informational —
-# Docker's `Internal` flag is false, so external attach works).
+# read-only source mounts; the writer SSH key is mounted 0600.
+#
+# PG dump strategy is split by orchestrator:
+#  - Dockge stacks (litellm pg 16, langfuse pg 16): native pg_dump from this
+#    container over the joined {stack}_default network. Image's pg_dump 17.x
+#    handles pg 16 servers fine.
+#  - TrueNAS apps (n8n / paperless / immich, all pg 18+): docker-exec into the
+#    actual postgres container so the dump uses each app's own pg_dump (always
+#    version-matched). Requires DOCKER_CLI + docker socket mount. No network
+#    join needed for these — see borgmatic.yaml `pg_dump_command:` overrides.
 services:
   borgmatic:
     image: ghcr.io/borgmatic-collective/borgmatic:latest
@@ -18,6 +22,10 @@ services:
       BORGMATIC_CRON: |
         0 5 * * *  root  borgmatic --verbosity 1 create
         0 6 * * 0  root  borgmatic --verbosity 1 check --only repository
+      # Install docker CLI at container start so pg_dump_command overrides can
+      # `docker exec` into the TrueNAS app pg containers (Pattern B for
+      # version-matched dumps). Requires the socket mount in volumes:.
+      DOCKER_CLI: "true"
       BORG_PASSPHRASE: ${BORG_PASSPHRASE}
       # Pre-hook DB creds (used inside borgmatic.yaml):
       LITELLM_PG_PASSWORD:  ${LITELLM_PG_PASSWORD}
@@ -35,6 +43,11 @@ services:
       # Writer SSH key (host-side perms 0600, root-owned):
       - /mnt/nvme/apps/borgmatic/secrets/borg-writer-nas:/root/.ssh/id_ed25519:ro
       - /mnt/nvme/apps/borgmatic/secrets/borg-writer-nas.pub:/root/.ssh/id_ed25519.pub:ro
+      # Docker socket — used by `pg_dump_command: docker exec ...` overrides
+      # for the TrueNAS-app pg dumps. Grants this container root-equivalent
+      # access via the daemon; acceptable since it already holds the writer
+      # key + RO mounts of all app data.
+      - /var/run/docker.sock:/var/run/docker.sock
       # Local Borg cache + state (persistent so dedup index isn't rebuilt every run):
       - /mnt/nvme/apps/borgmatic/borg-cache:/root/.cache/borg
       - /mnt/nvme/apps/borgmatic/borg-config:/root/.config/borg
@@ -52,15 +65,11 @@ services:
       - /mnt/tank/apps/paperless-ngx:/source/tank/paperless-ngx:ro
       - /mnt/tank/storage:/source/tank/storage:ro
     networks:
-      - litellm_default                          # pg_dump against litellm-db
-      - langfuse_default                         # pg_dump (postgres) + clickhouse-client
-      - ix-internal-n8n-n8n-net                  # pg_dump against n8n's postgres
-      - ix-internal-paperless-ngx-paperless-net  # pg_dump against paperless's postgres
-      - ix-internal-immich-immich-net            # pg_dump against immich's pgvecto
+      - litellm_default                          # native pg_dump against litellm-db (pg 16)
+      - langfuse_default                         # native pg_dump (postgres pg 16) + clickhouse-client
+      # n8n / paperless / immich dumps go via `docker exec` (pg_dump_command
+      # override in borgmatic.yaml) so no network join is needed for them.
 
 networks:
-  litellm_default:                         { external: true }
-  langfuse_default:                        { external: true }
-  ix-internal-n8n-n8n-net:                 { external: true }
-  ix-internal-paperless-ngx-paperless-net: { external: true }
-  ix-internal-immich-immich-net:           { external: true }
+  litellm_default:  { external: true }
+  langfuse_default: { external: true }

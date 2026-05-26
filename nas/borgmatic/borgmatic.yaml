@@ -73,20 +73,29 @@ postgresql_databases:
     username: langfuse
     password: ${LANGFUSE_PG_PASSWORD}
     format: custom
+  # TrueNAS-app pg dumps use `docker exec` so the dump runs inside each app's
+  # own postgres container — pg_dump version always matches server (these are
+  # pg 18+, borgmatic image ships pg client 17). PGPASSWORD is forwarded to
+  # the container via `-e PGPASSWORD` (no value → inherits from this process).
+  # `hostname` becomes `--host <name>` inside the container; the container's
+  # own service alias resolves to itself via docker DNS.
   - name: n8n
-    hostname: postgres            # service name inside ix-internal-n8n-n8n-net
+    pg_dump_command: docker exec -e PGPASSWORD ix-n8n-postgres-1 pg_dump
+    hostname: postgres
     port: 5432
     username: n8n
     password: ${N8N_PG_PASSWORD}
     format: custom
   - name: paperless
-    hostname: postgres            # service name inside ix-internal-paperless-ngx-paperless-net
+    pg_dump_command: docker exec -e PGPASSWORD ix-paperless-ngx-postgres-1 pg_dump
+    hostname: postgres
     port: 5432
     username: paperless
     password: ${PAPERLESS_PG_PASSWORD}
     format: custom
   - name: immich
-    hostname: pgvecto             # immich uses a pgvector-flavored image; service name is "pgvecto" inside ix-internal-immich-immich-net
+    pg_dump_command: docker exec -e PGPASSWORD ix-immich-pgvecto-1 pg_dump
+    hostname: pgvecto
     port: 5432
     username: immich
     password: ${IMMICH_PG_PASSWORD}
