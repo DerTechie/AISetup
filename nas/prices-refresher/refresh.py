@@ -127,10 +127,15 @@ def _maybe_float(value):
 
 
 def make_updater(gateway_url, master_key):
-    """Return a callable matching tick()'s updater contract that POSTs /model/update."""
+    """Return a callable matching tick()'s updater contract that POSTs /model/update.
+
+    Body shape note: LiteLLM identifies the DB row via `model_info.id` (NOT a top-level
+    `model_id`). A top-level `model_id` plus no `model_info` returns 400 with the
+    misleading message "Authentication Error, model_info not provided".
+    """
     def update(model_id, input_per_token, output_per_token):
         body = json.dumps({
-            "model_id": model_id,
+            "model_info": {"id": model_id},
             "litellm_params": {
                 "input_cost_per_token": input_per_token,
                 "output_cost_per_token": output_per_token,
