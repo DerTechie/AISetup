@@ -127,9 +127,11 @@ ntfy:
     message: "borgmatic FAILED on nas-aisetup — investigate"
     priority: max
 
-healthchecks:
-  ping_url: ${HEALTHCHECKS_PING_URL}
-  send_logs: true
-  states:
-    - finish
-    - fail
+# healthchecks deadman ping — uncomment + fill HEALTHCHECKS_PING_URL in .env
+# once a check exists on healthchecks.io (plan Task 15 wires this up).
+# healthchecks:
+#   ping_url: ${HEALTHCHECKS_PING_URL}
+#   send_logs: true
+#   states:
+#     - finish
+#     - fail
