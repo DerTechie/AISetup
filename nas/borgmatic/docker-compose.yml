@@ -17,15 +17,17 @@ services:
     hostname: nas-aisetup
     environment:
       TZ: Europe/Berlin
-      # Cron line baked into the container entrypoint — daily 05:00, plus a
-      # weekly Sun 06:00 repo-only check (read-OK with the append-only key).
-      BORGMATIC_CRON: |
-        0 5 * * *  root  borgmatic --verbosity 1 create
-        0 6 * * 0  root  borgmatic --verbosity 1 check --only repository
+      # Cron — env var names per borgmatic-collective's s6-overlay init scripts:
+      #   BACKUP_CRON = the schedule (just "m h dom mon dow", no user field)
+      #   EXTRA_CRON  = a full extra crontab line appended after the main one
+      # We want daily 05:00 create + weekly Sun 06:00 repo-only check.
+      BACKUP_CRON: "0 5 * * *"
+      EXTRA_CRON: "0 6 * * 0 /usr/local/bin/borgmatic --verbosity 1 check --only repository 2>&1"
       # Install docker CLI at container start so pg_dump_command overrides can
       # `docker exec` into the TrueNAS app pg containers (Pattern B for
       # version-matched dumps). Requires the socket mount in volumes:.
-      DOCKER_CLI: "true"
+      # (Env var name is DOCKERCLI per the image's init-custom-packages script.)
+      DOCKERCLI: "true"
       BORG_PASSPHRASE: ${BORG_PASSPHRASE}
       # Pre-hook DB creds (used inside borgmatic.yaml):
       LITELLM_PG_PASSWORD:  ${LITELLM_PG_PASSWORD}
