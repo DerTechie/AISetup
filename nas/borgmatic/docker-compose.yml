@@ -35,6 +35,7 @@ services:
       N8N_PG_PASSWORD:      ${N8N_PG_PASSWORD}
       PAPERLESS_PG_PASSWORD: ${PAPERLESS_PG_PASSWORD}
       IMMICH_PG_PASSWORD:   ${IMMICH_PG_PASSWORD}
+      FORGEJO_PG_PASSWORD:  ${FORGEJO_PG_PASSWORD}
       CLICKHOUSE_PASSWORD:  ${CLICKHOUSE_PASSWORD}
       # Failure-path hook (healthchecks deadman; ntfy alerting is configured
       # as a healthchecks.io integration, not as a borgmatic-side hook):

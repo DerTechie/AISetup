@@ -102,17 +102,13 @@ postgresql_databases:
     username: immich
     password: ${IMMICH_PG_PASSWORD}
     format: custom
-  # Forgejo pg hook — added once the app is installed and the real container
-  # name + PG user/password from the wizard are known. Until then, Forgejo
-  # Postgres is covered file-only via /source/nvme/forgejo/postgres_data and
-  # the ZFS snapshot taken at 03:00 (same posture as ClickHouse below).
-  # - name: forgejo
-  #   pg_dump_command: docker exec -e PGPASSWORD ix-forgejo-postgres-1 pg_dump
-  #   hostname: postgres
-  #   port: 5432
-  #   username: forgejo
-  #   password: ${FORGEJO_PG_PASSWORD}
-  #   format: custom
+  - name: forgejo
+    pg_dump_command: docker exec -e PGPASSWORD ix-forgejo-postgres-1 pg_dump
+    hostname: postgres
+    port: 5432
+    username: forgejo
+    password: ${FORGEJO_PG_PASSWORD}
+    format: custom
 
 # KNOWN GAP: borgmatic 2.x does not have a built-in clickhouse_databases hook
 # (only postgresql/mysql/mongodb/sqlite). Until we wire a custom before_actions
