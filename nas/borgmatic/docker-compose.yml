@@ -36,8 +36,8 @@ services:
       PAPERLESS_PG_PASSWORD: ${PAPERLESS_PG_PASSWORD}
       IMMICH_PG_PASSWORD:   ${IMMICH_PG_PASSWORD}
       CLICKHOUSE_PASSWORD:  ${CLICKHOUSE_PASSWORD}
-      # Failure-path hooks:
-      NTFY_TOPIC:          ${NTFY_TOPIC}
+      # Failure-path hook (healthchecks deadman; ntfy alerting is configured
+      # as a healthchecks.io integration, not as a borgmatic-side hook):
       HEALTHCHECKS_PING_URL: ${HEALTHCHECKS_PING_URL}
     volumes:
       # Config:

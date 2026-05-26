@@ -31,12 +31,9 @@ checks:
 # Use the admin SSH key. Port 23.
 ssh_command: ssh -p 23 -i ~/.ssh/borg-admin-arch -o StrictHostKeyChecking=accept-new
 
-# Failure notification — same ntfy topic as NAS, so a missed prune still
-# pages.
-ntfy:
-  topic: ${NTFY_TOPIC}
-  server: https://ntfy.sh
-  fail:
-    title: "[backup] arch admin op FAILED"
-    message: "borgmatic admin op FAILED on arch"
-    priority: max
+# Failure notification: see arch/borg-admin/README.md. The admin side does
+# NOT have a healthchecks deadman wired yet — prune (weekly) and check
+# (monthly) failures are currently silent. Either add per-action healthchecks
+# checks (free tier supports more than enough), or accept that admin failures
+# only surface when borgmatic's exit code is read by the systemd timer's
+# OnFailure target. Decision pending; flagged in plan Task 15 follow-up.

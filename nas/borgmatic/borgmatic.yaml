@@ -119,23 +119,6 @@ postgresql_databases:
 # MinIO needs no dump — Borg dedup handles object-store files efficiently;
 # /source/nvme/langfuse/minio-data is in source_directories.
 
-# Notification hooks: on_error -> ntfy push; on success -> healthchecks ping.
-ntfy:
-  topic: ${NTFY_TOPIC}
-  server: https://ntfy.sh
-  start:
-    title: "[backup] nightly start"
-    message: "borgmatic create starting on nas-aisetup"
-    priority: low
-  finish:
-    title: "[backup] nightly OK"
-    message: "borgmatic create completed; archive added"
-    priority: low
-  fail:
-    title: "[backup] FAILED"
-    message: "borgmatic FAILED on nas-aisetup — investigate"
-    priority: max
-
 # healthchecks deadman ping — fires on every finish/fail so an entire missed
 # run (container dead, host off) is detectable as "no signal" on the dashboard.
 # ntfy alone can't catch that, since a process that never runs sends nothing.
