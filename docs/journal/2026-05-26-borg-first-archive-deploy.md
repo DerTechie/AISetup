@@ -155,11 +155,16 @@ container. Operator's responsibility, not the tool's.
 
 - Four retries between `Task 13: kick off first archive` and a `borg create`
   that actually started streaming chunks.
-- The first archive kicked off at 2026-05-26T15:02:07 UTC.
-- Source payload visible to me as my user: ~17 GB raw (immich photos
-  dominate at 9.6 GB). Real total is larger because root-owned pg data
-  dirs read as 30 bytes for `du`. Will fill in real numbers from the borg
-  stats once the archive lands.
+- Archive `nas-aisetup-2026-05-26T15:02:07` ran from 15:02:08 to 15:49:29
+  UTC: **47 min 21 s** wall time for the first upload, 192,803 files.
+- **Original 18.56 GB → compressed 16.33 GB → deduplicated 15.45 GB**
+  (zstd,3; 75,109 unique chunks of 172,936 total). Compression ratio ~1.14
+  is on the low side because immich photos already ship as JPEG, so most
+  of the savings come from dedup of the postgres dumps and config trees,
+  not from compressing pixel data.
+- Verified from Arch with the admin key (`borgmatic-admin info ...`),
+  not from the NAS — the writer key on the NAS is append-only and
+  can't read archive metadata back. That separation worked as designed.
 
 ## What was rejected
 
