@@ -41,19 +41,24 @@ def _request(method, path, key, body=None):
 def _fetch_openrouter_prices():
     """Reuse pricing/sources/openrouter.py so seed + sidecar agree on the source."""
     # Imported lazily so unit tests don't drag the pricing package in unless run from repo root.
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+    _repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    if _repo_root not in sys.path:
+        sys.path.insert(0, _repo_root)
     from pricing.sources.openrouter import fetch as openrouter_fetch  # noqa: E402
 
     payload = openrouter_fetch()
     out = {}
     for model in payload.get("data", []):
+        model_id = model.get("id")
+        if model_id is None:
+            continue
         pricing = model.get("pricing") or {}
         prompt = pricing.get("prompt")
         completion = pricing.get("completion")
         if prompt is None or completion is None:
             continue
         try:
-            out[model["id"]] = (float(prompt), float(completion))
+            out[model_id] = (float(prompt), float(completion))
         except (TypeError, ValueError):
             continue
     return out
@@ -74,7 +79,7 @@ def enrich_openrouter_prices(params, openrouter_prices):
     the model id, raises OpenrouterPriceMissing (better than silently seeding $0).
     """
     if not params.get("model", "").startswith(OPENROUTER_PREFIX):
-        return params
+        return dict(params)
     live_id = params["model"][len(OPENROUTER_PREFIX):]
     prices = openrouter_prices.get(live_id)
     if prices is None:
@@ -142,7 +147,7 @@ def main():
                  "Is store_model_in_db enabled and the key correct?")
 
     # One OpenRouter fetch per seed run (covers every openrouter/* entry).
-    needs_openrouter = any(
+    needs_openrouter = (not args.dry_run) and any(
         e["litellm_params"].get("model", "").startswith(OPENROUTER_PREFIX) for e in seed
     )
     openrouter_prices = _fetch_openrouter_prices() if needs_openrouter else {}
