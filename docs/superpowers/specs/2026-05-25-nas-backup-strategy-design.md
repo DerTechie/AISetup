@@ -1,7 +1,7 @@
 # NAS-wide backup strategy — design
 
-**Date:** 2026-05-25
-**Status:** Design under review. **No backup machinery exists today** — this spec is urgent (the Forgejo spec depends on Phase 4 of this one before real data can land there).
+**Date:** 2026-05-25 (Phase-1/2 reality-check 2026-05-26)
+**Status:** Phases 0–2 deployed on the NAS. Phase 0 (Dockge → host-path) complete; Phase 1 (snapshots) and Phase 2 (NVMe → HDD replication) running and verified. Phase 3 (Borgmatic offsite) — repo artifacts committed, first archive deployment in progress. Phase 4 (test restore) not yet run; until it passes, the Forgejo spec's Status-line gate holds.
 
 ## 1. Goal
 
@@ -160,7 +160,7 @@ have been removed; updated compose files are committed.
 | `apps/immich/pgdata` | Protected (photo metadata index) |
 | `apps/nginx-proxy-manager/{data,certs}` | Protected (LE certs) |
 | `apps/pihole/{dnsmasq,config}` | Protected |
-| `apps/joplin` | Protected |
+| `apps/joplin` | **Excluded** (decommissioned; scheduled for deletion — see memory `joplin-decommissioning`) |
 | `apps/litellm/pgdata` *(post-Phase 0)* | Protected |
 | `apps/langfuse/pgdata` *(post-Phase 0)* | Protected |
 | `apps/langfuse/clickhouse-data` *(post-Phase 0)* | Protected |
@@ -185,15 +185,43 @@ have been removed; updated compose files are committed.
 
 ### 5.2 Snapshot policy classes
 
-Three classes, applied per dataset based on change rate and consistency
-needs. TrueNAS Periodic Snapshot Tasks, recursive where useful.
+**The class label lives on the app (parent dataset), not on its children.** All
+NVMe app snapshot tasks are **recursive at the parent.** This is load-bearing
+for §5.3 — see [`docs/journal/2026-05-26-zfs-replication-needs-parent-anchor.md`](../../journal/2026-05-26-zfs-replication-needs-parent-anchor.md)
+for the why (TrueNAS recursive replication requires a matching snapshot on the
+source dataset itself; per-child snapshot tasks don't anchor it).
 
-| Class | Cadence | Retention | Applies to |
+Four app-level shapes:
+
+| Class | Cadences (recursive on parent) | Retention | Apps |
 |---|---|---|---|
-| **A — Hot transactional** | every 1 hour | 24 hourly + 14 daily | every `*/pgdata`, `langfuse/clickhouse-data`, `langfuse/minio-data` (referenced by CH rows), `metrics/grafana-data` (sqlite-flavored grafana.db) |
-| **B — Standard app data** | every 6 hours | 12×6h + 30 daily + 6 monthly | `apps/dockge/*`, `apps/n8n/data`, `apps/joplin`, `apps/pihole/*`, `apps/nginx-proxy-manager/*`, `apps/paperless-ngx/data`, `apps/forgejo/data`, `apps/metrics/prometheus-data` |
-| **C — Cold irreplaceable** | daily 03:00 | 30 daily + 12 monthly + 5 yearly | `tank/apps/immich/data`, `tank/apps/paperless-ngx/{media,consume,trash}`, `tank/storage`, `tank/apps/forgejo/lfs` |
-| **Snapshot-only** | daily | 14 daily | `tank/home` |
+| **A — Hot only** | hourly + daily anchor | 24 hourly + 14 daily | `immich`, `litellm`, `langfuse`\* |
+| **B — Standard only** | every 6h + daily + monthly | 12×6h + 30 daily + 6 monthly | `dockge`, `pihole`, `nginx-proxy-manager` |
+| **M — Mixed (hot + standard)** | hourly + every 6h + daily + monthly | A ∪ B (24h + 14d + 30d + 6mo) | `n8n`, `paperless-ngx`, `metrics` |
+| **C — Cold irreplaceable** (HDD) | daily 03:00 | 30 daily + 12 monthly + 5 yearly | `tank/apps/immich/data`, `tank/apps/paperless-ngx/{media,consume,trash}`, `tank/storage`, `tank/apps/forgejo/lfs` |
+| **Snapshot-only** (HDD) | daily | 14 daily | `tank/home` |
+
+\* `langfuse`: the recursive snapshot task **excludes**
+`nvme/apps/langfuse/clickhouse-logs` (regrowing log files, marked Excluded
+in §5.1). The replication task inherits this through the snapshot exclude
+list, so `clickhouse-logs` never lands on the HDD replica.
+
+**Why three shapes for NVMe apps and not two:** Class A's short retention
+(14 d) is fine for transactional state that's also captured via `pg_dump` in
+the daily Borg archive; long retention there is waste. Class B's long retention
+(6 mo monthly) matters for app config/state where a user might roll back to a
+configuration from months ago. Apps that have both characteristics
+(`postgres + workflow data` for n8n; same shape for paperless and metrics)
+need both shapes, hence Class M.
+
+**On the cross-class coverage in Class M:** because the recursive parent task
+runs on every child, a Class-M parent gives *every* child the union of both
+retentions. ZFS copy-on-write makes the extra snapshots near-zero in disk cost
+(hourly snapshots of slow-changing data ≈ metadata only). Net upside: richer
+PITR everywhere for trivial overhead.
+
+**Forgejo (incoming):** Class M provisionally — has both Postgres and app data.
+Re-evaluate once installed.
 
 ### 5.3 ZFS replication NVMe → HDD
 
@@ -205,6 +233,19 @@ the working `tank/apps/` so a "replicated copy" can never be confused with
 - **Schedule:** daily at 04:00 (after the daily snapshot anchor at 03:00).
 - **Retention:** matches source — replicated snapshots carry their TTLs.
 - **Source datasets:** every NVMe parent in §5.1's Protected rows.
+- **Parent-anchor requirement:** TrueNAS recursive replication needs at least
+  one matching snapshot on the source dataset itself. The §5.2 *recursive at
+  the parent* policy satisfies this — per-leaf snapshot tasks would leave the
+  parent without an anchor, and the replication would fail with
+  *"Dataset 'X' does not have any matching snapshots to replicate."* This is
+  why §5.2's labels are app-level. Journal:
+  [`2026-05-26-zfs-replication-needs-parent-anchor.md`](../../journal/2026-05-26-zfs-replication-needs-parent-anchor.md).
+- **Replication ↔ snapshot-task linkage:** each Replication Task's
+  `periodic_snapshot_tasks` list links to **every** new snapshot task on its
+  parent (2 IDs for Class A, 3 for B, 5 for M). The replication then matches
+  snapshots by all the inherited naming schemas. Mismatched linkage silently
+  drops a class's coverage from the replica — verify with
+  `midclt call replication.query`.
 - **HDD-resident protected datasets** (`tank/apps/immich/data`,
   `tank/apps/paperless-ngx/*`, `tank/storage`, `tank/apps/forgejo/lfs`)
   **don't get local replication** — there's nowhere meaningfully different
@@ -215,14 +256,14 @@ the working `tank/apps/` so a "replicated copy" can never be confused with
 
 Three sequential events, quiet hours:
 
-- **03:00** — daily snapshots fire (class C; class B's daily run; the
-  snapshot-only daily).
+- **03:00** — daily snapshots fire (class A, B, M, and C daily tiers; the
+  snapshot-only daily; monthly tiers on day 1).
 - **04:00** — NVMe→HDD replication runs against the freshly-taken
   snapshots.
 - **05:00** — Borgmatic offsite run (§6).
 
-Hourly (class A) and 6-hour (class B) snapshots run on their own cadences
-independent of this anchor.
+The hourly tier (classes A and M) and the 6h tier (classes B and M) run on
+their own cadences independent of this anchor.
 
 ## 6. Offsite tier — BorgBackup + Borgmatic to Hetzner Storage Box
 
@@ -474,22 +515,25 @@ A failed nightly archive that nobody sees is a backup that fails open.
 
 Phases with verification gates. No skipping ahead with broken foundations.
 
-### Phase 0 — Dockge stack migration *(blocks everything else)*
-Per §4. **Verification gate:** seven host-path datasets exist with correct
-ownership; all three stacks serving normally; original Docker volumes
-removed; compose files committed. **Estimate:** ~90 min.
+### Phase 0 — Dockge stack migration *(blocks everything else)* — **DONE 2026-05-25**
+Per §4. Seven host-path datasets created with correct ownership; LiteLLM,
+Grafana, and Langfuse stacks all migrated to bind mounts and verified
+running. Compose changes committed (`4815bf2`, `b180978`, `c990b15`).
 
-### Phase 1 — Local snapshots
-Per §5.2. Configure Periodic Snapshot Tasks (classes A/B/C + snapshot-only
-tier). Confirm exclusions. Wait 24h, verify snapshots fire on schedule
-and counts are sane. **Estimate:** ~60 min + 24h soak.
+### Phase 1 — Local snapshots — **DONE 2026-05-26 (after re-architecture)**
+Per §5.2. Initial deployment placed Class A tasks per-leaf, which collided
+with §5.3's per-parent recursive replication (see journal
+[`2026-05-26-zfs-replication-needs-parent-anchor.md`](../journal/2026-05-26-zfs-replication-needs-parent-anchor.md)).
+Final state: every protected NVMe app has a recursive parent snapshot task
+matching its class (A/B/M); HDD class C and snapshot-only tier unchanged.
+Reproducible artifacts: [`nas/snapshot-tasks/2026-05-26-recursive-parent-migration.sh`](../../nas/snapshot-tasks/2026-05-26-recursive-parent-migration.sh)
+and [`nas/snapshot-tasks/2026-05-26-cleanup-relink-and-delete.sh`](../../nas/snapshot-tasks/2026-05-26-cleanup-relink-and-delete.sh).
 
-### Phase 2 — Local replication NVMe → HDD
-Per §5.3. Create `tank/replica/nvme-apps/` parent, one Replication Task
-per protected NVMe parent (recursive, daily 04:00, matched retention).
-Trigger initial seed manually. **Verification gate:** every protected
-NVMe dataset has a populated replica; snapshot lists match.
-**Estimate:** ~30 min + initial seed.
+### Phase 2 — Local replication NVMe → HDD — **DONE 2026-05-26**
+Per §5.3. `tank/replica/nvme-apps/` populated for all nine protected NVMe
+parents (dockge, pihole, nginx-proxy-manager, immich, litellm, langfuse,
+n8n, paperless-ngx, metrics). Replication tasks linked to the recursive
+parent snapshot tasks per §5.3's "Replication ↔ snapshot-task linkage."
 
 ### Phase 3 — Offsite via Borg + Borgmatic
 Per §6. The long one.
@@ -564,6 +608,10 @@ to Hetzner — leave it running overnight.
 
 ## 10. Repo artifact
 
+- `nas/snapshot-tasks/` — reproducible scripts used to deploy and migrate the
+  TrueNAS Periodic Snapshot Tasks via `midclt`. Today's contents: the recursive
+  parent migration and its cleanup follow-up; future re-runs (e.g., when
+  Forgejo lands) extend the same pattern.
 - `nas/borgmatic/` — committed Dockge stack with `docker-compose.yml`,
   `borgmatic.yaml`, and a `README.md` covering: Hetzner Storage Box
   hostname/port/user, the two-key model with both restriction lines,
