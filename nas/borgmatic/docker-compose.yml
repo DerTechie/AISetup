@@ -1,9 +1,11 @@
 # Borgmatic — orchestrates nightly Borg archive to the Hetzner Storage Box.
 # Deploy as its own Dockge stack on a NAS pool path (10.63.0.2). Container has
 # read-only source mounts; the writer SSH key is mounted 0600. The container
-# joins LiteLLM / Langfuse / n8n / Forgejo (where present) Docker networks so
-# Borgmatic's pre-hooks can reach their Postgres + ClickHouse instances for
-# native dumps.
+# joins each protected service's Docker network so Borgmatic's pre-hooks can
+# reach their Postgres + ClickHouse instances for native dumps.
+# Networks: Dockge stacks use {stack}_default; TrueNAS community apps use
+# ix-internal-{app}-{app}-net (tn.network.internal label is informational —
+# Docker's `Internal` flag is false, so external attach works).
 services:
   borgmatic:
     image: ghcr.io/borgmatic-collective/borgmatic:latest
@@ -50,11 +52,15 @@ services:
       - /mnt/tank/apps/paperless-ngx:/source/tank/paperless-ngx:ro
       - /mnt/tank/storage:/source/tank/storage:ro
     networks:
-      - litellm_default          # for pg_dump against litellm-db
-      - langfuse_default         # for pg_dump + clickhouse-client
-      - n8n_default              # for pg_dump (TrueNAS-app network name TBD; fix on first deploy)
+      - litellm_default                          # pg_dump against litellm-db
+      - langfuse_default                         # pg_dump (postgres) + clickhouse-client
+      - ix-internal-n8n-n8n-net                  # pg_dump against n8n's postgres
+      - ix-internal-paperless-ngx-paperless-net  # pg_dump against paperless's postgres
+      - ix-internal-immich-immich-net            # pg_dump against immich's pgvecto
 
 networks:
-  litellm_default:  { external: true }
-  langfuse_default: { external: true }
-  n8n_default:      { external: true }
+  litellm_default:                         { external: true }
+  langfuse_default:                        { external: true }
+  ix-internal-n8n-n8n-net:                 { external: true }
+  ix-internal-paperless-ngx-paperless-net: { external: true }
+  ix-internal-immich-immich-net:           { external: true }

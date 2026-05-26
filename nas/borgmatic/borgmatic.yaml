@@ -74,19 +74,19 @@ postgresql_databases:
     password: ${LANGFUSE_PG_PASSWORD}
     format: custom
   - name: n8n
-    hostname: n8n-postgres        # adjust to actual service name on first deploy
+    hostname: postgres            # service name inside ix-internal-n8n-n8n-net
     port: 5432
     username: n8n
     password: ${N8N_PG_PASSWORD}
     format: custom
   - name: paperless
-    hostname: paperless-db        # adjust on first deploy
+    hostname: postgres            # service name inside ix-internal-paperless-ngx-paperless-net
     port: 5432
     username: paperless
     password: ${PAPERLESS_PG_PASSWORD}
     format: custom
   - name: immich
-    hostname: immich-postgres     # adjust on first deploy
+    hostname: pgvecto             # immich uses a pgvector-flavored image; service name is "pgvecto" inside ix-internal-immich-immich-net
     port: 5432
     username: immich
     password: ${IMMICH_PG_PASSWORD}
