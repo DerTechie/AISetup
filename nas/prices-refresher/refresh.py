@@ -106,6 +106,9 @@ def fetch_db_routes(gateway_url, master_key):
         model_info = entry.get("model_info") or {}
         if not model_info.get("db_model"):
             continue
+        if not model_info.get("id"):
+            log.warning("DB route %r has no id; skipping", entry.get("model_name"))
+            continue
         params = entry.get("litellm_params") or {}
         routes.append({
             "id": model_info.get("id"),
