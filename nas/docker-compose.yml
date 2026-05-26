@@ -33,3 +33,15 @@ services:
     volumes:
       - ./litellm-config.yaml:/app/config.yaml
     command: ["--config", "/app/config.yaml", "--port", "4000"]
+
+  prices-refresher:
+    build: ./prices-refresher
+    restart: always
+    depends_on:
+      - litellm
+    environment:
+      # Intra-compose DNS — no host port exposed; refresher only talks to litellm.
+      LITELLM_GATEWAY_URL: http://litellm:4000
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      # 3600s = 1h. OpenRouter prices move at most weekly in practice; bump if noisy.
+      REFRESH_INTERVAL_SEC: "3600"
