@@ -301,3 +301,81 @@ The commit diff is the price-change record. See [`pricing/README.md`](pricing/RE
   password, recorded out-of-band) — losing it orphans every stored credential.
 - **Gotcha:** set `max_tokens ≥ 256` in LLM nodes, or a GPT-5 route silently falls
   back to local `qwen` (see § Common gotchas).
+
+## Backups — Borg offsite (restore + verification)
+
+Spec: [`superpowers/specs/2026-05-25-nas-backup-strategy-design.md`](superpowers/specs/2026-05-25-nas-backup-strategy-design.md) §6–§7.
+
+- **Repo:** `ssh://u600186@u600186.your-storagebox.de:23/./borg-repo` (Hetzner BX21).
+- **Writer key** (NAS, append-only): `/mnt/nvme/apps/borgmatic/secrets/borg-writer-nas`.
+- **Admin key** (Arch, full power — prune, check, restore): `~/.ssh/borg-admin-arch`.
+- **Passphrase:** `~/.local/bin/borg-get-passphrase` (1Password primary, EnvironmentFile fallback). Borgmatic config: `~/.config/borg-admin/borgmatic.yaml`.
+- **Convenience env block:**
+  ```bash
+  source ~/.config/borg-admin/env
+  export BORG_PASSPHRASE
+  export BORG_RSH="ssh -p 23 -i ~/.ssh/borg-admin-arch -o StrictHostKeyChecking=accept-new"
+  REPO="ssh://u600186@u600186.your-storagebox.de:23/./borg-repo"
+  ```
+
+### Restore — single file or small tree (Scenario A)
+
+From Arch with admin env loaded:
+
+```bash
+borg list "$REPO"                              # pick an archive
+ARCHIVE="$REPO::<archive-name>"
+mkdir -p /tmp/restore && cd /tmp/restore
+borg extract --progress "$ARCHIVE" 'source/nvme/<stack>/<path>'
+```
+
+Archive paths map to live paths as `source/nvme/<stack>` → `/mnt/nvme/apps/<stack>` and `source/tank/<x>` → `/mnt/tank/<x>` (see `nas/borgmatic/docker-compose.yml` volumes).
+
+### Restore — Postgres database (per-stack pg_dump)
+
+Per-DB dumps live in the archive at `borgmatic/postgresql_databases/<container>:5432/<dbname>` (Borg 17.x client-format, so `pg_restore` requires Postgres **17+**):
+
+```bash
+# Extract just the dump (note: the path has a colon — quote it)
+borg extract --progress "$ARCHIVE" 'borgmatic/postgresql_databases/<container>:5432/<db>'
+# Inspect TOC
+podman run --rm \
+  --mount type=bind,src="$PWD/borgmatic/postgresql_databases/<container>:5432",dst=/dump,readonly \
+  docker.io/library/postgres:17 pg_restore --list /dump/<db>
+```
+
+To restore *into the running stack*: `pg_restore --clean --if-exists -U <user> -d <db>` against the live container. **Heads-up:** the dumps reference per-stack non-data roles (e.g. `grafana_ro`); a clean container will log `role "..." does not exist` and skip those grants — harmless. Real-environment restores have the roles.
+
+### Quarterly verification test (the gate)
+
+Per spec §7.2: a backup that has not been restored in 6 months is presumed broken. Reminder fires via systemd timer on Arch (see § Quarterly restore reminder below). When it fires, run a small restore + diff and append the outcome to the log at the end of this section.
+
+Procedure (≈ 30 min):
+
+1. Load the convenience env block above.
+2. Pick a small protected dataset (LiteLLM works well: small, exercises both file and pg_dump paths).
+3. Extract files + pg_dump to `/tmp/restore-test/`. Time it (this is your RTO data point).
+4. Stable-config sha256 diff: compute on Arch, compare to live on NAS (root on NAS — pgdata is uid 999):
+   ```bash
+   sha256sum /tmp/restore-test/source/nvme/<stack>/pgdata/{PG_VERSION,postgresql.conf,postgresql.auto.conf,pg_hba.conf,pg_ident.conf}
+   # On NAS as root:
+   sha256sum /mnt/nvme/apps/<stack>/pgdata/{PG_VERSION,postgresql.conf,postgresql.auto.conf,pg_hba.conf,pg_ident.conf}
+   ```
+   All five hashes must match. (pgdata data files are live-mutated and intentionally not byte-diffed; integrity comes from the pg_dump.)
+5. pg_dump round-trip: restore into a throwaway `postgres:17` container, spot-check row counts on key tables.
+6. Append a row to the log below with date + measured wall time + outcome.
+
+### Test restore log
+
+| Date | Target | Wall time | Pass? | Notes |
+|---|---|---|---|---|
+| 2026-05-26 | `litellm` (files + pg_dump) | ~1 min | ✅ | First Phase 4 gate. 1671 files restored, 5/5 stable PG config sha256 match live, full pg_restore loads 65 tables; 75 ignored errors all `GRANT ... TO grafana_ro` (env, not data). Journal: [`journal/2026-05-26-phase4-restore-test.md`](journal/2026-05-26-phase4-restore-test.md). |
+
+### Quarterly restore reminder
+
+Reminder-only systemd timer on Arch (no auto-restore — we want the human in the loop so they relearn the steps each time):
+
+- Unit: `~/.config/systemd/user/borg-restore-reminder.{service,timer}`
+- Cadence: every 3 months from first activation; sends a ntfy push to `$NTFY_TOPIC` (same topic as Borgmatic alerts) telling you to run § Quarterly verification test.
+- Enable: `systemctl --user enable --now borg-restore-reminder.timer`
+- Inspect: `systemctl --user list-timers borg-restore-reminder.timer`

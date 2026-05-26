@@ -1,7 +1,7 @@
 # NAS-wide backup strategy — design
 
 **Date:** 2026-05-25 (Phase-1/2 reality-check 2026-05-26)
-**Status:** Phases 0–2 deployed on the NAS. Phase 0 (Dockge → host-path) complete; Phase 1 (snapshots) and Phase 2 (NVMe → HDD replication) running and verified. Phase 3 (Borgmatic offsite) — repo artifacts committed, first archive deployment in progress. Phase 4 (test restore) not yet run; until it passes, the Forgejo spec's Status-line gate holds.
+**Status:** Phases 0–4 done. Phase 0 (Dockge → host-path), Phase 1 (snapshots), Phase 2 (NVMe → HDD replication), Phase 3 (Borgmatic offsite with healthchecks deadman + ntfy) all live and verified. Phase 4 (test restore) passed 2026-05-26 against `litellm` (files + pg_dump) — Forgejo Status-line gate now released. Only remaining wire-up: recurring quarterly restore reminder (runbook § Backups).
 
 ## 1. Goal
 
@@ -563,16 +563,19 @@ Arch; second daily archive runs on schedule; an intentional pg_dump
 failure triggers a phone notification within minutes; healthchecks.io
 deadman is pinging. **Estimate:** ~half a day + initial transfer.
 
-### Phase 4 — Test restore (the gate that proves it all)
-Per §7.1 / §7.2. Pick a small protected dataset (e.g., `joplin`). Extract
-from latest Borg archive to `/tmp/restore-test/`. Diff against live;
-document outcome with date in the runbook; schedule the recurring
-quarterly test.
+### Phase 4 — Test restore (the gate that proves it all) — **DONE 2026-05-26**
+Per §7.1 / §7.2. Joplin was the example target in the original draft but has
+since been decommissioned (see [`joplin-decommissioning`](../../journal/2026-05-26-phase4-restore-test.md) memory); substituted with
+`litellm`, which exercises *both* the file layer and the `pg_dump` artifact
+in the same restore — a stricter test than a pure-files dataset would be.
 
-**Verification gate:** restore worked end-to-end without manual
-intervention beyond commands. Measured time becomes your actual RTO data
-point. If it exceeded your stated tolerance, redesign before declaring
-done. **Estimate:** ~30 min.
+Outcome (full write-up: [`journal/2026-05-26-phase4-restore-test.md`](../journal/2026-05-26-phase4-restore-test.md)):
+file-count parity, all five stable PG config files byte-match live, full
+`pg_restore` round-trip into a throwaway `postgres:17` container loads 65
+tables with sane row counts. End-to-end RTO on a warm box: well under 5
+minutes. The 75 ignored `GRANT … TO grafana_ro` errors are environmental
+(role re-created at stack bring-up), not data. Quarterly reminder timer
+to be wired on Arch per runbook § Backups.
 
 ### Forgejo dependency
 The Forgejo install can proceed in parallel with Phases 0–3 (none of them
