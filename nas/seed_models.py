@@ -38,6 +38,58 @@ def _request(method, path, key, body=None):
         return json.loads(raw) if raw else {}
 
 
+def _fetch_openrouter_prices():
+    """Reuse pricing/sources/openrouter.py so seed + sidecar agree on the source."""
+    # Imported lazily so unit tests don't drag the pricing package in unless run from repo root.
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+    from pricing.sources.openrouter import fetch as openrouter_fetch  # noqa: E402
+
+    payload = openrouter_fetch()
+    out = {}
+    for model in payload.get("data", []):
+        pricing = model.get("pricing") or {}
+        prompt = pricing.get("prompt")
+        completion = pricing.get("completion")
+        if prompt is None or completion is None:
+            continue
+        try:
+            out[model["id"]] = (float(prompt), float(completion))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+OPENROUTER_PREFIX = "openrouter/"
+
+
+class OpenrouterPriceMissing(SystemExit):
+    """Seeded an openrouter/* model that OpenRouter doesn't list. Operator must fix."""
+
+
+def enrich_openrouter_prices(params, openrouter_prices):
+    """If params['model'] starts with 'openrouter/', fill in {input,output}_cost_per_token.
+
+    Hand-set values in the seed (e.g. input_cost_per_token: 0 for aux-local) are preserved
+    -- this hook only fills in fields the operator did not set. If OpenRouter doesn't list
+    the model id, raises OpenrouterPriceMissing (better than silently seeding $0).
+    """
+    if not params.get("model", "").startswith(OPENROUTER_PREFIX):
+        return params
+    live_id = params["model"][len(OPENROUTER_PREFIX):]
+    prices = openrouter_prices.get(live_id)
+    if prices is None:
+        raise OpenrouterPriceMissing(
+            f"OpenRouter does not list {params['model']}. Fix the model id in the seed "
+            "or hand-set input_cost_per_token / output_cost_per_token."
+        )
+    out = dict(params)
+    if "input_cost_per_token" not in out:
+        out["input_cost_per_token"] = prices[0]
+    if "output_cost_per_token" not in out:
+        out["output_cost_per_token"] = prices[1]
+    return out
+
+
 def resolve_env_refs(params):
     """Expand 'os.environ/VAR' values to the real secret at seed time.
 
@@ -89,6 +141,12 @@ def main():
         sys.exit(f"Cannot read {GATEWAY_URL}/model/info ({err.code}). "
                  "Is store_model_in_db enabled and the key correct?")
 
+    # One OpenRouter fetch per seed run (covers every openrouter/* entry).
+    needs_openrouter = any(
+        e["litellm_params"].get("model", "").startswith(OPENROUTER_PREFIX) for e in seed
+    )
+    openrouter_prices = _fetch_openrouter_prices() if needs_openrouter else {}
+
     for entry in seed:
         name = entry["model_name"]
         if name in present:
@@ -100,7 +158,10 @@ def main():
                 _request("POST", "/model/delete", key, {"id": present[name]})
         print(f"+ {name}: creating -> {entry['litellm_params']['model']}")
         if not args.dry_run:
-            payload = dict(entry, litellm_params=resolve_env_refs(entry["litellm_params"]))
+            enriched = enrich_openrouter_prices(
+                resolve_env_refs(entry["litellm_params"]), openrouter_prices
+            )
+            payload = dict(entry, litellm_params=enriched)
             _request("POST", "/model/new", key, payload)
 
     print("\nVerify:  curl -s -H \"Authorization: Bearer $LITELLM_MASTER_KEY\" "
