@@ -9,6 +9,7 @@ import logging
 import os
 import sys
 import time
+import urllib.error
 import urllib.request
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/models"
@@ -144,8 +145,13 @@ def make_updater(gateway_url, master_key):
                 "Content-Type": "application/json",
             },
         )
-        with urllib.request.urlopen(request, timeout=30) as response:
-            response.read()
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                response.read()
+        except urllib.error.HTTPError as err:
+            body = err.read().decode(errors="replace")[:1000]
+            log.error("/model/update %s -> %s: %s", model_id, err.code, body)
+            raise
     return update
 
 
