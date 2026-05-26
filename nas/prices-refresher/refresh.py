@@ -9,17 +9,20 @@ def parse_openrouter_payload(payload):
     """Flatten OpenRouter /models response to {model_id: (input_per_token, output_per_token)} as floats.
 
     Skips models without both prompt and completion prices; skips non-numeric prices.
-    OpenRouter encodes prices as strings; we float() them once here.
+    Skips entries with no id. OpenRouter encodes prices as strings; we float() them once here.
     """
     out = {}
     for model in payload.get("data", []):
+        model_id = model.get("id")
+        if model_id is None:
+            continue
         pricing = model.get("pricing") or {}
         prompt = pricing.get("prompt")
         completion = pricing.get("completion")
         if prompt is None or completion is None:
             continue
         try:
-            out[model["id"]] = (float(prompt), float(completion))
+            out[model_id] = (float(prompt), float(completion))
         except (TypeError, ValueError):
             continue
     return out

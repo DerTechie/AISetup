@@ -22,6 +22,19 @@ class ParseOpenrouterPayload(unittest.TestCase):
         }]}
         self.assertEqual(parse_openrouter_payload(payload), {})
 
+    def test_skips_model_missing_prompt_price(self):
+        payload = {"data": [{
+            "id": "weird/no-input-price",
+            "pricing": {"completion": "0.000001"},
+        }]}
+        self.assertEqual(parse_openrouter_payload(payload), {})
+
+    def test_skips_model_missing_id(self):
+        payload = {"data": [{
+            "pricing": {"prompt": "0.000001", "completion": "0.000002"},
+        }]}
+        self.assertEqual(parse_openrouter_payload(payload), {})
+
     def test_skips_model_missing_pricing_block(self):
         payload = {"data": [{"id": "no-pricing-at-all"}]}
         self.assertEqual(parse_openrouter_payload(payload), {})
