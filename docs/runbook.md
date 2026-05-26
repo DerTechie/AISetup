@@ -288,6 +288,56 @@ git add pricing/data && git commit -m "data(pricing): refresh snapshot $(date +%
 
 The commit diff is the price-change record. See [`pricing/README.md`](pricing/README.md) for details.
 
+This is the **price-vs-quality tracking** CSV (used for model re-picks). The
+**gateway's** per-call cost accounting is refreshed separately by the
+`prices-refresher` sidecar — see the next section.
+
+## Updating gateway model prices (prices-refresher sidecar)
+
+LiteLLM does **not** auto-fetch from OpenRouter; the `prices-refresher` sidecar
+in the litellm Dockge stack does. Per-call costs in Langfuse, `/spend`, and the
+Grafana cost panel all depend on it being healthy. Spec:
+[`../docs/superpowers/specs/2026-05-26-litellm-price-refresh-design.md`](superpowers/specs/2026-05-26-litellm-price-refresh-design.md).
+
+### Force an immediate refresh
+
+```bash
+sudo docker compose -f /mnt/nvme/apps/dockge/stacks/litellm/compose.yaml restart prices-refresher
+```
+
+The first tick after restart runs immediately, so this is also the "refresh now"
+knob.
+
+### Read the logs
+
+```bash
+sudo docker compose -f /mnt/nvme/apps/dockge/stacks/litellm/compose.yaml logs -n 50 prices-refresher
+```
+
+Healthy ticks log `tick ok (N openrouter routes checked, M updated)`. `M > 0`
+means a price changed upstream — worth a quick glance at the Grafana cost panel
+to confirm totals look sensible at the new rate.
+
+### When Grafana cost obviously drifts
+
+If a model's cost looks an order of magnitude wrong, in this order:
+
+1. `sudo docker compose logs prices-refresher` — is it crashing? OpenRouter 5xx?
+2. `curl -s -H "Authorization: Bearer $LITELLM_MASTER_KEY" http://localhost:4000/model/info | jq` — what `input_cost_per_token` / `output_cost_per_token` does the gateway currently believe?
+3. Cross-check against `pricing/data/openrouter-prices.csv` (last committed snapshot) or `curl -s https://openrouter.ai/api/v1/models | jq '.data[] | select(.id=="<id>") | .pricing'`.
+
+If OpenRouter renamed a model, the route id in `nas/models.seed.json` needs
+updating and a `seed_models.py --force` re-run; the sidecar logs `openrouter
+does not list <model>; keeping last-known price` in that case (fail-open — a
+stale price is less wrong than $0).
+
+### Deploy gotchas (learned 2026-05-26)
+
+- **Path:** the stack lives in **Dockge** (`/mnt/nvme/apps/dockge/stacks/litellm/`), not `/mnt/nvme/apps/litellm/`. Compose-file name is `compose.yaml`, not `docker-compose.yml`.
+- **`sudo` required** for `docker` on the NAS — the shell user can't access the socket directly.
+- **Startup race:** `depends_on: litellm` only waits for the container to *exist*, not for it to bind port 4000. A fresh `docker compose up` may log one `Connection refused` on the first tick, then sleep for the full `REFRESH_INTERVAL_SEC` before retrying. Workaround: `restart prices-refresher` once LiteLLM is stable — same "refresh now" knob as above.
+- **`/model/update` body shape:** LiteLLM identifies the DB row via `model_info.id` (nested), NOT a top-level `model_id`. A wrong shape returns a misleading 400 `"Authentication Error, model_info not provided"`. The sidecar gets this right; documenting in case anyone re-implements the call.
+
 ## n8n (workflow automation)
 
 - **Where:** TrueNAS **community/TrueCharts app** (not Dockge), UI at
