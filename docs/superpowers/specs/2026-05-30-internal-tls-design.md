@@ -151,10 +151,14 @@ Five phases. Each has a stop-condition; the budget is honest, not optimistic.
 
 ### 6b. Pi-hole wildcard
 
-1. Locate Pi-hole's persisted `/etc/dnsmasq.d/` directory (TrueNAS app or Dockge volume mount).
+Pi-hole v6 differs from v5 in three ways that affect this step. All three surfaced during the cutover — see [the Phase 6b journal entry](../../journal/2026-05-30-internal-tls-phase6b-pihole-wildcard.md).
+
+1. Locate Pi-hole's persisted `/etc/dnsmasq.d/` directory (TrueNAS app or Dockge volume mount). On this NAS: `/mnt/nvme/apps/pihole/dnsmasq/`.
 2. Create `02-lan-dertechie.conf` with one line: `address=/lan.dertechie.de/10.63.0.2`.
-3. `pihole restartdns` (or restart the container).
-4. Verify: `dig +short anything-made-up.lan.dertechie.de @10.63.0.2` returns `10.63.0.2`. `dig +short fritzbox.home @10.63.0.2` still returns `10.63.0.1`.
+3. Make the host directory readable by FTL. FTL drops to UID 1000 (`pihole` user) inside the container at startup; the TrueNAS dataset default is `drwxrwx--- root:root` which UID 1000 cannot traverse. `chmod 755` on the directory fixes it.
+4. Enable custom `/etc/dnsmasq.d/` loading. Pi-hole v6 ignores the directory by default (changed from v5): `sudo docker exec <container> pihole-FTL --config misc.etc_dnsmasq_d true`. Or set `FTLCONF_misc_etc_dnsmasq_d: 'true'` in the container env if the deployment surface allows.
+5. Restart the container to apply both step 4 (TOML re-read) and the new file. `pihole reloaddns` (v6's replacement for `restartdns`) re-reads dnsmasq files only once `etc_dnsmasq_d` is already true; for the first-time setup a full restart is cleaner.
+6. Verify: `dig +short anything-made-up.lan.dertechie.de @10.63.0.2` returns `10.63.0.2`. `dig +short fritzbox.home @10.63.0.2` still returns `10.63.0.1`.
 
 ### 6c. NPM gets the wildcard cert
 
