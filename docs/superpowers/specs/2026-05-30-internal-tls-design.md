@@ -162,11 +162,29 @@ Pi-hole v6 differs from v5 in three ways that affect this step. All three surfac
 
 ### 6c. NPM gets the wildcard cert
 
-1. NPM → SSL Certificates → Add SSL Certificate → Let's Encrypt.
-2. Domain Names: `*.lan.dertechie.de` and `lan.dertechie.de` (apex too — cheap future-proofing).
-3. DNS Challenge → OVH → paste the four credentials.
-4. Save. NPM/certbot writes a TXT, LE validates, cert lands.
-5. If this fails it is almost always token permissions. The OVH manager has a "Test" call to verify credentials.
+The token scope set in 6a needs an extra rule for this step — the certbot-dns-ovh plugin calls `GET /domain/zone/` (trailing slash, zone-discovery) before it touches any record, and the 6a scope didn't cover that path. OVH access rules are byte-literal: `/foo` and `/foo/` are distinct rules, and `*` does not match the empty string. See [the Phase 6c journal entry](../../journal/2026-05-30-internal-tls-phase6c-npm-cert.md).
+
+1. **Rotate the CK** to include the zone-discovery rule. Don't use `createToken` (it makes a *new* application each call); use `POST /1.0/auth/credential` with the existing AK to mint a new CK against the same app:
+
+   ```bash
+   curl -sS -H "X-Ovh-Application: $OVH_AK" -H "Content-Type: application/json" \
+     -d '{"accessRules":[
+       {"method":"GET","path":"/domain/zone/"},
+       {"method":"GET","path":"/domain/zone/dertechie.de/*"},
+       {"method":"POST","path":"/domain/zone/dertechie.de/*"},
+       {"method":"PUT","path":"/domain/zone/dertechie.de/*"},
+       {"method":"DELETE","path":"/domain/zone/dertechie.de/*"}
+     ]}' \
+     https://eu.api.ovh.com/1.0/auth/credential
+   ```
+
+   Open the returned `validationUrl` in a browser while logged into OVH to activate the new CK. AK and AS stay unchanged.
+
+2. NPM → SSL Certificates → Add SSL Certificate → Let's Encrypt.
+3. Domain Names: `*.lan.dertechie.de` and `lan.dertechie.de` (apex too — cheap future-proofing).
+4. DNS Challenge → OVH → paste credentials (use the rotated CK from step 1, keep AK + AS from 6a, endpoint `ovh-eu`).
+5. Save. NPM/certbot writes a TXT, LE validates, cert lands within ~1 min.
+6. If this fails, read the URL in the 403 message byte-by-byte before assuming credentials are wrong — most likely a path-shape mismatch in the access rules.
 
 ### 6d. Cut over `git` as the canary
 
