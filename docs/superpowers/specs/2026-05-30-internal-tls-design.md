@@ -190,7 +190,7 @@ The token scope set in 6a needs an extra rule for this step — the certbot-dns-
 
 Parallel transition — the old name doesn't disappear yet.
 
-1. **NPM:** edit the Forgejo proxy host. *Add* `git.lan.dertechie.de` as an additional domain (keep `git.home` for now). Attach the new wildcard cert. Save. Both names now work, both serving valid TLS.
+1. **NPM:** create a *new* proxy host for `git.lan.dertechie.de` alongside the existing `git.home` one. Both forward to the same Forgejo upstream (`10.63.0.2:30142` http). The new host gets the LE wildcard cert; the old `git.home` host keeps its mkcert cert untouched. (One NPM proxy host = one TLS cert, and the wildcard does not cover `git.home`, so combining them under one proxy host would break TLS on the old name. Hence two hosts during the transition window.) See [the Phase 6d journal entry](../../journal/2026-05-30-internal-tls-phase6d-canary-cutover.md).
 2. **Forgejo `ROOT_URL`:** flip from `https://git.home/` to `https://git.lan.dertechie.de/` in the TrueNAS chart wizard env. Restart Forgejo. Generated URLs in the UI start pointing at the new name; the old name keeps resolving via NPM until 6e.
 3. **fj on the workstation:**
    - Add `git.lan.dertechie.de <existing-UUID>` to `~/.config/forgejo-cli/client_ids` (same OAuth app registration on the Forgejo side — the host string is just a routing key for fj).
